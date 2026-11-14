@@ -1,4 +1,5 @@
 import type { StellarData } from '../model/datosEstelares';
+import { apiUrl } from '../api/apiBase';
 
 export interface GetDatosOptions {
   fecha?: Date;
@@ -24,7 +25,7 @@ export async function getDatos(
   if (opts.name) params.set('name', opts.name);
 
   const response = await fetch(
-    `/api/${encodeURIComponent(landing_site)}?${params.toString()}`,
+    apiUrl(`/api/${encodeURIComponent(landing_site)}?${params.toString()}`),
     { method: 'GET' }
   );
   if (!response.ok) {

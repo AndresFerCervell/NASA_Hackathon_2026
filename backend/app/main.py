@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from datetime import datetime, timezone
 
@@ -19,10 +20,17 @@ from app.astronomy.ephemeris import (
 
 app = FastAPI(title="J2000.0 Ephemeris API", version="1.0.0")
 
+_raw_cors_origins = os.getenv("CORS_ORIGINS", "*").strip()
+_cors_origins = (
+    ["*"]
+    if _raw_cors_origins == "*"
+    else [origin.strip() for origin in _raw_cors_origins.split(",") if origin.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
