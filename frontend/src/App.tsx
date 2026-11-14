@@ -20,6 +20,7 @@ import { CanvasErrorBoundary } from './components/CanvasErrorBoundary';
 import { MoonExplorerScene } from './components/MoonExplorerScene';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
 import { checkBackendHealth } from './api/ephemerisClient';
+import { useData } from './hooks/useStellarData';
 
 type ActiveTab = 'moon' | 'orbital';
 
@@ -65,6 +66,12 @@ export function App() {
 
   const [sites, setSites] = useState<LandingSite[]>(CURATED_LANDING_SITES);
   const [selectedSite, setSelectedSite] = useState<LandingSite | null>(CURATED_LANDING_SITES[0]);
+  const {
+    data: stellarData,
+    handlePickLandingSite,
+    isLoading: isStellarLoading,
+    error: stellarError,
+  } = useData();
   const [hoverCoords, setHoverCoords] = useState<string>('Apunta a la superficie');
   const [moonZoomTrigger, setMoonZoomTrigger] = useState<{
     seq: number;
@@ -115,17 +122,33 @@ export function App() {
     setDisplayJD(jd);
   }, []);
 
-  const handleSelectSite = useCallback((site: LandingSite) => {
-    setSelectedSite(site);
-    if (site.missionDate) {
-      const { year, month, day, hour } = site.missionDate;
-      const nextJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
-      jdRef.current = nextJD;
-      setDisplayJD(nextJD);
-    }
-    setCameraMode('zenithal');
-    setActiveTab('orbital');
-  }, []);
+  const handleSelectSite = useCallback(
+    (site: LandingSite) => {
+      setSelectedSite(site);
+      let targetJD = jdRef.current;
+      if (site.missionDate) {
+        const { year, month, day, hour } = site.missionDate;
+        targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
+        jdRef.current = targetJD;
+        setDisplayJD(targetJD);
+      }
+      const targetCal = jdToCalendarUTC(targetJD);
+      const hr = Math.floor(targetCal.hour);
+      const min = Math.floor((targetCal.hour - hr) * 60);
+      const targetDate = new Date(
+        Date.UTC(targetCal.year, targetCal.month - 1, targetCal.day, hr, min, 0)
+      );
+      handlePickLandingSite(site.id, {
+        fecha: targetDate,
+        lat: site.latDeg,
+        lon: site.lonDeg,
+        name: site.name,
+      });
+      setCameraMode('zenithal');
+      setActiveTab('orbital');
+    },
+    [handlePickLandingSite]
+  );
 
   const handleAddCustomSite = (e: FormEvent) => {
     e.preventDefault();
@@ -544,14 +567,23 @@ export function App() {
 
                 <div className="solar-meta">
                   <strong>
-                    {selectedSite.name} &middot; {formatDms(selectedSite.latDeg, true)},{' '}
-                    {formatDms(selectedSite.lonDeg, false)}
+                    {stellarData?.name ?? selectedSite.name} &middot;{' '}
+                    {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
                   </strong>
                   <span>
                     Elevación solar: {solarImpact.elevationDeg >= 0 ? '+' : ''}
                     {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
                     {solarImpact.earthVisible ? 'Tierra visible (Comms OK)' : 'Sin vista directa a Tierra'}
                   </span>
+                  {isStellarLoading && <span>Consultando viabilidad en backend...</span>}
+                  {stellarError && <span>{stellarError}</span>}
+                  {stellarData && (
+                    <span>
+                      Viabilidad: <strong>{stellarData.funciona ? 'Apto' : 'No apto'}</strong> &bull;{' '}
+                      {stellarData.tipo_despegue}
+                      {stellarData.tipo_fallo !== 'Ninguno' ? ` • Fallo: ${stellarData.tipo_fallo}` : ''}
+                    </span>
+                  )}
                 </div>
 
                 <div className="btn-group">
