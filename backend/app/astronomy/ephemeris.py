@@ -347,7 +347,14 @@ def evaluate_landing_site_viability(
     sun_hits = cos_sun > 0.0
     earth_visible = local_normal[2] > 0.0
 
-    if sun_hits and earth_visible:
+    # Manual toggle to test steep-slope landing failure
+    slope_too_steep = True
+
+    if slope_too_steep:
+        funciona = False
+        tipo_despegue = "Not viable (unsafe terrain)"
+        tipo_fallo = "Terrain slope too steep"
+    elif sun_hits and earth_visible:
         funciona = True
         tipo_despegue = f"Viable (solar elevation +{sun_elev_deg:.1f}°, direct Earth link)"
         tipo_fallo = "None"
