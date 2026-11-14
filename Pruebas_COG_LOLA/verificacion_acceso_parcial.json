@@ -1,0 +1,16 @@
+{
+  "verified_date": "2026-11-14",
+  "experiment": "Lectura Rasterio de ventana 16x16 mediante proxy local de diagnóstico",
+  "source": "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF",
+  "total_file_bytes": 218961039,
+  "http_range_requests": 2,
+  "body_bytes_transferred": 786432,
+  "fraction_transferred": 0.0035916526684000617,
+  "output_shape": [16, 16],
+  "array_bytes": 1024,
+  "ranges": [
+    {"first": 0, "last": 32767, "bytes": 32768},
+    {"first": 140460032, "last": 141213695, "bytes": 753664}
+  ],
+  "note": "Resultado real de una primera ejecución de este mismo experimento durante la creación del notebook. Una nueva ejecución puede obtener errores temporales HTTP 403; este registro histórico no sustituye su resultado actual. Los bytes excluyen cabeceras y TLS."
+}
