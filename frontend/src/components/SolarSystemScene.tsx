@@ -14,6 +14,9 @@ import {
   PERIHELION_LON_DEG,
 } from '../astronomy/ephemeris';
 import { createSunGlowTexture } from '../astronomy/textures';
+import type { LandingSite } from '../astronomy/landingSites';
+import type { StellarData } from '../model/datosEstelares';
+import { RocketPlaceholder } from './RocketPlaceholder';
 
 export type CameraMode = 'heliocentric' | 'zenithal' | 'geocentric';
 
@@ -24,6 +27,9 @@ interface SolarSystemSceneProps {
   cameraMode: CameraMode;
   showLabels: boolean;
   onTelemetrySample: (jd: number) => void;
+  stellarData: StellarData | null;
+  selectedSite: LandingSite | null;
+  missionRunId: number;
 }
 
 const BASE_ORBIT_R = 16;
@@ -37,6 +43,9 @@ export function SolarSystemScene({
   cameraMode,
   showLabels,
   onTelemetrySample,
+  stellarData,
+  selectedSite,
+  missionRunId,
 }: SolarSystemSceneProps) {
   const { camera } = useThree();
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -418,6 +427,18 @@ export function SolarSystemScene({
           <meshStandardMaterial map={moonMap} roughness={0.9} metalness={0.02} />
         </mesh>
       </group>
+
+      {/* Animated Rocket Mission Placeholder */}
+      <RocketPlaceholder
+        isPlaying={isPlaying}
+        missionRunId={missionRunId}
+        stellarData={stellarData}
+        selectedSite={selectedSite}
+        jdRef={jdRef}
+        baseOrbitR={BASE_ORBIT_R}
+        visEcc={VIS_ECC}
+        baseMoonR={BASE_MOON_R}
+      />
     </>
   );
 }
