@@ -1,0 +1,182 @@
+{
+  "ephemeris": {
+    "t0_aterrizaje": "1969-07-20T20:17:00Z",
+    "timeline": [
+      {
+        "hora_offset": 0,
+        "sol_elevacion_deg": 10.6038,
+        "sol_azimut_deg": 88.176,
+        "tierra_elevacion_deg": 58.9318,
+        "tierra_azimut_deg": 277.7952
+      },
+      {
+        "hora_offset": 1,
+        "sol_elevacion_deg": 11.1126,
+        "sol_azimut_deg": 88.1499,
+        "tierra_elevacion_deg": 58.9037,
+        "tierra_azimut_deg": 277.9048
+      },
+      {
+        "hora_offset": 2,
+        "sol_elevacion_deg": 11.6213,
+        "sol_azimut_deg": 88.1235,
+        "tierra_elevacion_deg": 58.8761,
+        "tierra_azimut_deg": 278.0141
+      },
+      {
+        "hora_offset": 3,
+        "sol_elevacion_deg": 12.1301,
+        "sol_azimut_deg": 88.097,
+        "tierra_elevacion_deg": 58.8489,
+        "tierra_azimut_deg": 278.1233
+      },
+      {
+        "hora_offset": 4,
+        "sol_elevacion_deg": 12.6388,
+        "sol_azimut_deg": 88.0703,
+        "tierra_elevacion_deg": 58.8223,
+        "tierra_azimut_deg": 278.2322
+      },
+      {
+        "hora_offset": 5,
+        "sol_elevacion_deg": 13.1476,
+        "sol_azimut_deg": 88.0434,
+        "tierra_elevacion_deg": 58.7961,
+        "tierra_azimut_deg": 278.3409
+      },
+      {
+        "hora_offset": 6,
+        "sol_elevacion_deg": 13.6563,
+        "sol_azimut_deg": 88.0163,
+        "tierra_elevacion_deg": 58.7704,
+        "tierra_azimut_deg": 278.4494
+      },
+      {
+        "hora_offset": 7,
+        "sol_elevacion_deg": 14.165,
+        "sol_azimut_deg": 87.9889,
+        "tierra_elevacion_deg": 58.7452,
+        "tierra_azimut_deg": 278.5577
+      },
+      {
+        "hora_offset": 8,
+        "sol_elevacion_deg": 14.6736,
+        "sol_azimut_deg": 87.9613,
+        "tierra_elevacion_deg": 58.7206,
+        "tierra_azimut_deg": 278.6658
+      },
+      {
+        "hora_offset": 9,
+        "sol_elevacion_deg": 15.1823,
+        "sol_azimut_deg": 87.9335,
+        "tierra_elevacion_deg": 58.6965,
+        "tierra_azimut_deg": 278.7737
+      },
+      {
+        "hora_offset": 10,
+        "sol_elevacion_deg": 15.6909,
+        "sol_azimut_deg": 87.9054,
+        "tierra_elevacion_deg": 58.6728,
+        "tierra_azimut_deg": 278.8813
+      },
+      {
+        "hora_offset": 11,
+        "sol_elevacion_deg": 16.1995,
+        "sol_azimut_deg": 87.8771,
+        "tierra_elevacion_deg": 58.6498,
+        "tierra_azimut_deg": 278.9887
+      },
+      {
+        "hora_offset": 12,
+        "sol_elevacion_deg": 16.7081,
+        "sol_azimut_deg": 87.8486,
+        "tierra_elevacion_deg": 58.6272,
+        "tierra_azimut_deg": 279.0959
+      },
+      {
+        "hora_offset": 13,
+        "sol_elevacion_deg": 17.2167,
+        "sol_azimut_deg": 87.8198,
+        "tierra_elevacion_deg": 58.6052,
+        "tierra_azimut_deg": 279.2028
+      },
+      {
+        "hora_offset": 14,
+        "sol_elevacion_deg": 17.7252,
+        "sol_azimut_deg": 87.7907,
+        "tierra_elevacion_deg": 58.5837,
+        "tierra_azimut_deg": 279.3095
+      },
+      {
+        "hora_offset": 15,
+        "sol_elevacion_deg": 18.2337,
+        "sol_azimut_deg": 87.7613,
+        "tierra_elevacion_deg": 58.5628,
+        "tierra_azimut_deg": 279.416
+      },
+      {
+        "hora_offset": 16,
+        "sol_elevacion_deg": 18.7422,
+        "sol_azimut_deg": 87.7317,
+        "tierra_elevacion_deg": 58.5425,
+        "tierra_azimut_deg": 279.5222
+      },
+      {
+        "hora_offset": 17,
+        "sol_elevacion_deg": 19.2507,
+        "sol_azimut_deg": 87.7018,
+        "tierra_elevacion_deg": 58.5227,
+        "tierra_azimut_deg": 279.6282
+      },
+      {
+        "hora_offset": 18,
+        "sol_elevacion_deg": 19.7592,
+        "sol_azimut_deg": 87.6716,
+        "tierra_elevacion_deg": 58.5035,
+        "tierra_azimut_deg": 279.7339
+      },
+      {
+        "hora_offset": 19,
+        "sol_elevacion_deg": 20.2676,
+        "sol_azimut_deg": 87.6411,
+        "tierra_elevacion_deg": 58.4849,
+        "tierra_azimut_deg": 279.8393
+      },
+      {
+        "hora_offset": 20,
+        "sol_elevacion_deg": 20.776,
+        "sol_azimut_deg": 87.6103,
+        "tierra_elevacion_deg": 58.4669,
+        "tierra_azimut_deg": 279.9446
+      },
+      {
+        "hora_offset": 21,
+        "sol_elevacion_deg": 21.2844,
+        "sol_azimut_deg": 87.5792,
+        "tierra_elevacion_deg": 58.4495,
+        "tierra_azimut_deg": 280.0495
+      },
+      {
+        "hora_offset": 22,
+        "sol_elevacion_deg": 21.7928,
+        "sol_azimut_deg": 87.5477,
+        "tierra_elevacion_deg": 58.4326,
+        "tierra_azimut_deg": 280.1542
+      },
+      {
+        "hora_offset": 23,
+        "sol_elevacion_deg": 22.3011,
+        "sol_azimut_deg": 87.516,
+        "tierra_elevacion_deg": 58.4164,
+        "tierra_azimut_deg": 280.2586
+      },
+      {
+        "hora_offset": 24,
+        "sol_elevacion_deg": 22.8094,
+        "sol_azimut_deg": 87.4838,
+        "tierra_elevacion_deg": 58.4008,
+        "tierra_azimut_deg": 280.3628
+      }
+    ]
+  }
+}
