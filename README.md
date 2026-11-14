@@ -1,2 +1,6 @@
-# NASA_Hackathon_2026
-# NASA_Hackathon_2026
+NASA Space Apps Challenge
+Hackathon 2026
+
+Project: Lunar Landing Site Navigator
+
+
