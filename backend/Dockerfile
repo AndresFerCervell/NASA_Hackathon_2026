@@ -41,12 +41,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copiar el código fuente de la aplicación
 COPY . .
 
+# Pre-descargar el kernel de efemérides DE440s en /app/data para evitar descargas en frío
+RUN python -c "from app.astronomy.ephemeris import _get_skyfield_context; _get_skyfield_context()"
+
 # Crear un usuario no raíz por seguridad (Buenas prácticas de contenedorización)
 RUN useradd -m appuser && chown -R appuser:appuser .
 USER appuser
 
-# Exponer el puerto de FastAPI
+# Exponer el puerto de FastAPI (Render inyecta PORT dinámicamente)
 EXPOSE 8000
 
 # Comando de arranque usando Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
