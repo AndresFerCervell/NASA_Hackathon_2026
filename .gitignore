@@ -33,3 +33,14 @@ Desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Project-specific files
+package-lock.json
+skills-lock.json
+tsconfig.tsbuildinfo
+.agents
+.claude
+backend/.venv
+backend/data/*.bsp
+__pycache__
+*.pyc
