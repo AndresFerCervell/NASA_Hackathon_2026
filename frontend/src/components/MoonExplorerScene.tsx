@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Billboard, Line, OrbitControls, Stars, Text } from '@react-three/drei';
+import { Billboard, Line, OrbitControls, Stars, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { createMoonTexture } from '../astronomy/textures';
 import { formatDms, geoPoint, type LandingSite } from '../astronomy/landingSites';
 
 interface MoonExplorerSceneProps {
@@ -27,14 +26,13 @@ export function MoonExplorerScene({
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const moonTexture = useMemo(() => createMoonTexture(), []);
+  const moonTexture = useTexture('/textures/moon.jpg');
 
   useEffect(() => {
     return () => {
-      moonTexture.dispose();
       document.body.style.cursor = 'auto';
     };
-  }, [moonTexture]);
+  }, []);
 
   // Handle zoom / reset buttons from HTML HUD
   useEffect(() => {
