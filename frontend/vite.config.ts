@@ -9,6 +9,16 @@ const proxyTarget = /^https?:\/\//.test(rawBackendUrl)
 export default defineConfig({
   plugins: [react()],
   server: {
+    allowedHosts: ['landingsitefrontend.onrender.com', '.onrender.com'],
+    proxy: {
+      '/api': {
+        target: proxyTarget,
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    allowedHosts: ['landingsitefrontend.onrender.com', '.onrender.com'],
     proxy: {
       '/api': {
         target: proxyTarget,
