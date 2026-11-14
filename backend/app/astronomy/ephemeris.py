@@ -4,14 +4,34 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
 from skyfield.api import Loader
 
 DEG2RAD = math.pi / 180.0
+RAD2DEG = 180.0 / math.pi
 AU_KM = 149_597_870.7
 PERIHELION_LON_DEG = 102.9373
+
+CURATED_SITES: dict[str, dict[str, object]] = {
+    "im1-odysseus": {
+        "name": "IM-1 Odysseus (Malapert A)",
+        "lat": -80.13,
+        "lon": 1.44,
+    },
+    "artemis3-shackleton": {
+        "name": "Artemis III (Shackleton Rim)",
+        "lat": -89.68,
+        "lon": 129.0,
+    },
+    "apollo-11": {
+        "name": "Apollo 11 (Tranquility Base)",
+        "lat": 0.67,
+        "lon": 23.47,
+    },
+}
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -233,3 +253,120 @@ def compute_trajectory_range(
             )
         )
     return points
+
+
+def _normalize(v: tuple[float, float, float]) -> tuple[float, float, float]:
+    norm = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    if norm == 0.0:
+        return (0.0, 0.0, 0.0)
+    return (v[0] / norm, v[1] / norm, v[2] / norm)
+
+
+def _cross(
+    a: tuple[float, float, float], b: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def _dot(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def evaluate_landing_site_viability(
+    landing_site: str,
+    fecha_iso: str | None = None,
+    lat_deg: float | None = None,
+    lon_deg: float | None = None,
+    site_name: str | None = None,
+) -> dict[str, object]:
+    preset = CURATED_SITES.get(landing_site)
+    name = site_name or (str(preset["name"]) if preset else landing_site)
+    lat = lat_deg if lat_deg is not None else (float(preset["lat"]) if preset else -85.0)
+    lon = lon_deg if lon_deg is not None else (float(preset["lon"]) if preset else 0.0)
+
+    if fecha_iso:
+        dt = datetime.fromisoformat(fecha_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    else:
+        dt = datetime.now(timezone.utc)
+
+    hour_float = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+    jd = clamp_or_wrap_jd(compute_julian_date(dt.year, dt.month, dt.day, hour_float))
+    t = compute_orbital_mechanics_from_jd(jd)
+
+    # Ecliptic scene vectors matching frontend Three.js convention
+    lon_e_rad = t.lambdaE * DEG2RAD
+    v_e_rad = (t.lambdaE - PERIHELION_LON_DEG) * DEG2RAD
+    r_e = (16.0 * (1.0 - 0.085 * 0.085)) / (1.0 + 0.085 * math.cos(v_e_rad))
+    earth_pos = (r_e * math.cos(lon_e_rad), 0.0, -r_e * math.sin(lon_e_rad))
+
+    r_m = (t.rM_km / 385001.0) * 3.2
+    lon_m_rad = t.lambdaM * DEG2RAD
+    lat_m_rad = t.betaM * DEG2RAD
+    cos_lat_m = math.cos(lat_m_rad)
+    moon_offset = (
+        r_m * cos_lat_m * math.cos(lon_m_rad),
+        r_m * math.sin(lat_m_rad),
+        -r_m * cos_lat_m * math.sin(lon_m_rad),
+    )
+    moon_pos = (
+        earth_pos[0] + moon_offset[0],
+        earth_pos[1] + moon_offset[1],
+        earth_pos[2] + moon_offset[2],
+    )
+
+    to_sun = _normalize((-moon_pos[0], -moon_pos[1], -moon_pos[2]))
+    z_axis = _normalize(
+        (earth_pos[0] - moon_pos[0], earth_pos[1] - moon_pos[1], earth_pos[2] - moon_pos[2])
+    )
+    x_axis = _normalize(_cross((0.0, 1.0, 0.0), z_axis))
+    y_axis = _normalize(_cross(z_axis, x_axis))
+
+    lat_rad = lat * DEG2RAD
+    lon_rad = lon * DEG2RAD
+    local_normal = _normalize(
+        (
+            -math.cos(lat_rad) * math.sin(lon_rad),
+            math.sin(lat_rad),
+            math.cos(lat_rad) * math.cos(lon_rad),
+        )
+    )
+    world_normal = _normalize(
+        (
+            x_axis[0] * local_normal[0] + y_axis[0] * local_normal[1] + z_axis[0] * local_normal[2],
+            x_axis[1] * local_normal[0] + y_axis[1] * local_normal[1] + z_axis[1] * local_normal[2],
+            x_axis[2] * local_normal[0] + y_axis[2] * local_normal[1] + z_axis[2] * local_normal[2],
+        )
+    )
+
+    cos_sun = max(-1.0, min(1.0, _dot(world_normal, to_sun)))
+    sun_elev_deg = math.asin(cos_sun) * RAD2DEG
+    sun_hits = cos_sun > 0.0
+    earth_visible = local_normal[2] > 0.0
+
+    if sun_hits and earth_visible:
+        funciona = True
+        tipo_despegue = f"Viable (elevación solar +{sun_elev_deg:.1f}°, enlace Tierra directo)"
+        tipo_fallo = "Ninguno"
+    elif sun_hits and not earth_visible:
+        funciona = False
+        tipo_despegue = f"Parcial (elevación solar +{sun_elev_deg:.1f}°, requiere relay)"
+        tipo_fallo = "Sin línea de visión directa con la Tierra"
+    elif not sun_hits and earth_visible:
+        funciona = False
+        tipo_despegue = "No viable (esperar amanecer lunar)"
+        tipo_fallo = f"Sin iluminación solar ({sun_elev_deg:.1f}°)"
+    else:
+        funciona = False
+        tipo_despegue = "No viable"
+        tipo_fallo = f"Sin luz solar ({sun_elev_deg:.1f}°) ni enlace directo con la Tierra"
+
+    return {
+        "name": name,
+        "funciona": funciona,
+        "tipo_despegue": tipo_despegue,
+        "tipo_fallo": tipo_fallo,
+    }
