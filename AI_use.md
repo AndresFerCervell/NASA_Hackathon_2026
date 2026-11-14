@@ -1,5 +1,9 @@
 ## Document for recording AI use
 
+- Used AI to name terrain JSON exports automatically using latitude, longitude and computed elevation, preserving full numerical precision inside the JSON.
+
+- Used AI to consolidate the LOLA elevation, local maximum slope and 360-direction horizon calculations into the standalone LOLA_Terreno/terreno_lola.py script with JSON export. Removed the auxiliary slope module and adjusted the reference notebook imports. A previously requested combined geometry/terrain export was withdrawn after clarification of the scope.
+
 - Generated a preview of a 3D moon.
 - Generated a simulation of Lunar, Earth and Sun orbits.
 - Added skills to use AI. AI wrote what those skills are in the README.
