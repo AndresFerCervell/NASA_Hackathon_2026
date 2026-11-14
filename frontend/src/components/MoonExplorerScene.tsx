@@ -162,13 +162,18 @@ export function MoonExplorerScene({
         </Text>
       </Billboard>
 
-      {/* 3 Fixed Random Landing Sites (2 South Pole, 1 North Pole) */}
+      {/* Curated & Custom Landing Sites */}
       {sites.map((site) => {
         const pos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.035);
         const labelPos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.24);
         const isHovered = hoveredId === site.id;
         const isSelected = selectedSiteId === site.id;
-        const pinColor = site.pole === 'south' ? '#38bdf8' : '#fbbf24';
+        const pinColor =
+          site.pole === 'south'
+            ? '#38bdf8'
+            : site.pole === 'north'
+              ? '#fbbf24'
+              : '#34d399';
 
         return (
           <group key={site.id}>

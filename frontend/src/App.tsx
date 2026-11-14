@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Canvas } from '@react-three/fiber';
 import {
   clampOrWrapJD,
@@ -11,8 +11,9 @@ import {
 } from './astronomy/ephemeris';
 import {
   computeSiteSolarImpact,
+  CURATED_LANDING_SITES,
   formatDms,
-  generateRandomLandingSites,
+  getQuickmapUrl,
   type LandingSite,
 } from './astronomy/landingSites';
 import { CanvasErrorBoundary } from './components/CanvasErrorBoundary';
@@ -58,17 +59,23 @@ export function App() {
   const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+  const [showCustomForm, setShowCustomForm] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
 
-  // 3 fixed random landing sites (2 South Pole, 1 North Pole)
-  const [sites] = useState<LandingSite[]>(() => generateRandomLandingSites());
-  const [selectedSite, setSelectedSite] = useState<LandingSite | null>(null);
+  const [sites, setSites] = useState<LandingSite[]>(CURATED_LANDING_SITES);
+  const [selectedSite, setSelectedSite] = useState<LandingSite | null>(CURATED_LANDING_SITES[0]);
   const [hoverCoords, setHoverCoords] = useState<string>('Apunta a la superficie');
   const [moonZoomTrigger, setMoonZoomTrigger] = useState<{
     seq: number;
     factor: number;
     reset?: boolean;
   } | null>(null);
+
+  // Custom coordinate form state
+  const [customName, setCustomName] = useState('Sitio Personalizado');
+  const [customLat, setCustomLat] = useState('-85.0');
+  const [customLon, setCustomLon] = useState('0.0');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,6 +90,15 @@ export function App() {
   const solarImpact = useMemo(
     () => (selectedSite ? computeSiteSolarImpact(selectedSite, displayJD) : null),
     [selectedSite, displayJD]
+  );
+
+  const comparisonRows = useMemo(
+    () =>
+      sites.map((site) => ({
+        site,
+        impact: computeSiteSolarImpact(site, displayJD),
+      })),
+    [sites, displayJD]
   );
 
   const setCalendarUTC = useCallback(
@@ -101,9 +117,36 @@ export function App() {
 
   const handleSelectSite = useCallback((site: LandingSite) => {
     setSelectedSite(site);
+    if (site.missionDate) {
+      const { year, month, day, hour } = site.missionDate;
+      const nextJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
+      jdRef.current = nextJD;
+      setDisplayJD(nextJD);
+    }
     setCameraMode('zenithal');
     setActiveTab('orbital');
   }, []);
+
+  const handleAddCustomSite = (e: FormEvent) => {
+    e.preventDefault();
+    const lat = Math.max(-90, Math.min(90, Number(customLat) || 0));
+    const lon = Math.max(-180, Math.min(180, Number(customLon) || 0));
+    const pole: LandingSite['pole'] =
+      lat <= -60 ? 'south' : lat >= 60 ? 'north' : 'equatorial';
+    const newSite: LandingSite = {
+      id: `custom-${Date.now()}`,
+      name: customName.trim() || 'Sitio Custom',
+      program: 'Custom',
+      region: `${formatDms(lat, true)}, ${formatDms(lon, false)}`,
+      pole,
+      latDeg: lat,
+      lonDeg: lon,
+      isCustom: true,
+    };
+    setSites((prev) => [...prev, newSite]);
+    setShowCustomForm(false);
+    handleSelectSite(newSite);
+  };
 
   // Keyboard navigation in orbital view
   useEffect(() => {
@@ -188,7 +231,7 @@ export function App() {
           <div className="title-block">
             <h1>
               {activeTab === 'moon'
-                ? 'Luna — Explorador de Sitios 3D'
+                ? 'Luna — Explorador de Sitios NASA 3D'
                 : 'J2000.0 3D Ecliptic Ephemeris'}
             </h1>
             <p>
@@ -219,6 +262,15 @@ export function App() {
                 Simulador Orbital
               </button>
             </div>
+
+            <button
+              type="button"
+              className={`hud-btn ${showComparison ? 'is-active' : ''}`}
+              aria-pressed={showComparison}
+              onClick={() => setShowComparison((v) => !v)}
+            >
+              Comparar sitios
+            </button>
 
             {activeTab === 'orbital' && (
               <>
@@ -298,15 +350,74 @@ export function App() {
           </div>
         </header>
 
+        {/* Side-by-Side Comparison Drawer (available in both tabs) */}
+        {showComparison && (
+          <section className="hud-card comparison-panel" aria-label="Comparativa de sitios lunares">
+            <div className="comparison-grid">
+              {comparisonRows.map(({ site, impact }) => (
+                <div
+                  key={site.id}
+                  className={`compare-card ${selectedSite?.id === site.id ? 'is-selected' : ''}`}
+                >
+                  <div className="compare-card-head">
+                    <div>
+                      <span className="compare-program">{site.program}</span>
+                      <div>
+                        <strong>{site.name}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="compare-metrics">
+                    <span>
+                      {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
+                    </span>
+                    {site.dateLabel && <span>Fecha: {site.dateLabel}</span>}
+                  </div>
+                  <div className="compare-metrics">
+                    <span>
+                      {impact.sunHits ? '☀ Impacta el Sol' : '🌑 En sombra'} (
+                      {impact.elevationDeg >= 0 ? '+' : ''}
+                      {impact.elevationDeg.toFixed(1)}&deg;)
+                    </span>
+                    <span>
+                      {impact.earthVisible ? '📡 Tierra visible' : 'Sin vista Tierra'} (
+                      {impact.earthElevationDeg >= 0 ? '+' : ''}
+                      {impact.earthElevationDeg.toFixed(1)}&deg;)
+                    </span>
+                  </div>
+                  <div className="compare-actions">
+                    <button
+                      type="button"
+                      className="hud-btn is-active"
+                      onClick={() => handleSelectSite(site)}
+                    >
+                      Ver en órbita
+                    </button>
+                    <a
+                      className="quickmap-link"
+                      href={getQuickmapUrl(site.latDeg, site.lonDeg)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      LROC QuickMap ↗
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Initial Tab: 3D Moon Explorer Overlay */}
         {activeTab === 'moon' ? (
           <>
             <div className="moon-hero">
-              <div className="moon-hero-eyebrow">01 — Sitios de alunizaje</div>
+              <div className="moon-hero-eyebrow">01 — Sitios de alunizaje NASA</div>
               <h2>Luna.</h2>
               <p>
-                Gira el globo lunar y pincha en cualquiera de los 3 puntos fijos (2 en el Polo Sur,
-                1 en el Polo Norte) para abrir la vista cenital orbital y comprobar su iluminación solar.
+                Gira el globo lunar y pincha en cualquiera de las misiones precargadas (o añade tus
+                propias coordenadas) para abrir la vista cenital en su fecha oficial y comprobar su
+                iluminación solar.
               </p>
             </div>
 
@@ -316,21 +427,70 @@ export function App() {
                 <strong className="moon-coords-val">{hoverCoords}</strong>
               </div>
 
-              <div className="hud-card sites-bar" role="group" aria-label="Puntos fijos en la Luna">
+              <div className="hud-card sites-bar" role="group" aria-label="Misiones y sitios lunares">
                 {sites.map((site) => (
                   <button
                     key={site.id}
                     type="button"
                     className="site-pill"
                     onClick={() => handleSelectSite(site)}
+                    title={site.dateLabel ? `Fecha: ${site.dateLabel}` : site.region}
                   >
                     <span className={`site-dot ${site.pole}`} />
-                    <span>
-                      {site.name} ({formatDms(site.latDeg, true)})
-                    </span>
+                    <span>{site.name}</span>
                   </button>
                 ))}
+
+                <button
+                  type="button"
+                  className={`hud-btn ${showCustomForm ? 'is-active' : ''}`}
+                  onClick={() => setShowCustomForm((v) => !v)}
+                >
+                  + Coordenadas
+                </button>
               </div>
+
+              {showCustomForm && (
+                <form className="hud-card custom-site-form" onSubmit={handleAddCustomSite}>
+                  <div className="custom-field">
+                    <label htmlFor="custom-name">Nombre</label>
+                    <input
+                      id="custom-name"
+                      className="name-input"
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                    />
+                  </div>
+                  <div className="custom-field">
+                    <label htmlFor="custom-lat">Lat (-90..90)</label>
+                    <input
+                      id="custom-lat"
+                      type="number"
+                      step="0.01"
+                      min={-90}
+                      max={90}
+                      value={customLat}
+                      onChange={(e) => setCustomLat(e.target.value)}
+                    />
+                  </div>
+                  <div className="custom-field">
+                    <label htmlFor="custom-lon">Lon (-180..180)</label>
+                    <input
+                      id="custom-lon"
+                      type="number"
+                      step="0.01"
+                      min={-180}
+                      max={180}
+                      value={customLon}
+                      onChange={(e) => setCustomLon(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="hud-btn is-active">
+                    Añadir y ver
+                  </button>
+                </form>
+              )}
 
               <div className="hud-card btn-group" aria-label="Controles de cámara lunar">
                 <button
@@ -389,7 +549,8 @@ export function App() {
                   </strong>
                   <span>
                     Elevación solar: {solarImpact.elevationDeg >= 0 ? '+' : ''}
-                    {solarImpact.elevationDeg.toFixed(1)}&deg;
+                    {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
+                    {solarImpact.earthVisible ? 'Tierra visible (Comms OK)' : 'Sin vista directa a Tierra'}
                   </span>
                 </div>
 
@@ -399,12 +560,21 @@ export function App() {
                       key={site.id}
                       type="button"
                       className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
-                      onClick={() => setSelectedSite(site)}
+                      onClick={() => handleSelectSite(site)}
                     >
                       {site.name}
                     </button>
                   ))}
                 </div>
+
+                <a
+                  className="quickmap-link"
+                  href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  LROC QuickMap ↗
+                </a>
               </div>
             )}
 
