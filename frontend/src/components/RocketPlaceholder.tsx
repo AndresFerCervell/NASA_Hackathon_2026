@@ -20,7 +20,7 @@ interface RocketPlaceholderProps {
   baseMoonR: number;
 }
 
-export type FailureMode = 'none' | 'comms' | 'solar' | 'critical';
+export type FailureMode = 'none' | 'comms' | 'solar' | 'slope' | 'critical';
 
 export function getFailureMode(
   stellarData: StellarData | null,
@@ -35,6 +35,9 @@ export function getFailureMode(
   }
   if (stellarData.funciona) return 'none';
   const fallo = stellarData.tipo_fallo.toLowerCase();
+  if (fallo.includes('slope') || fallo.includes('steep') || fallo.includes('pendiente')) {
+    return 'slope';
+  }
   const noSun =
     fallo.includes('solar illumination') ||
     fallo.includes('iluminación solar') ||
@@ -149,7 +152,14 @@ export function RocketPlaceholder({
       }
     } else {
       // Failure trajectories based on tipo_fallo
-      const abortPoint = failureMode === 'critical' ? 0.45 : failureMode === 'comms' ? 0.65 : 0.78;
+      const abortPoint =
+        failureMode === 'critical'
+          ? 0.45
+          : failureMode === 'comms'
+            ? 0.65
+            : failureMode === 'slope'
+              ? 0.85
+              : 0.78;
 
       if (p < abortPoint) {
         const u = p / abortPoint;

@@ -27,6 +27,7 @@ const MODE_LABELS: Record<FailureMode, { title: string; badgeClass: string }> = 
   none: { title: 'Nominal Landing', badgeClass: 'success' },
   comms: { title: 'Failure: No Line of Sight', badgeClass: 'failed' },
   solar: { title: 'Failure: No Solar Illumination', badgeClass: 'failed' },
+  slope: { title: 'Failure: Slope Too Steep', badgeClass: 'failed' },
   critical: { title: 'Critical Failure: No Sun or Link', badgeClass: 'failed' },
 };
 
@@ -45,6 +46,11 @@ function getPhaseLabel(mode: FailureMode, p: number): string {
     if (p < 0.42) return 'Descending in lunar shadow';
     if (p < 0.68) return 'Touchdown complete — No solar power, shutting down...';
     return 'Thermal failure — Surface explosion';
+  }
+  if (mode === 'slope') {
+    if (p < 0.45) return 'Controlled descent toward landing zone';
+    if (p < 0.72) return 'Touchdown on steep slope — Rocket tipping over';
+    return 'Tip-over impact — Surface explosion';
   }
   if (p < 0.58) return 'Uncontrolled descent in darkness';
   return 'Critical impact and explosion';
@@ -77,8 +83,8 @@ function LandingStage({
   const progressRef = useRef(0);
   const lastPhaseRef = useRef('');
 
-  const hasSun = failureMode === 'none' || failureMode === 'comms';
-  const hasComms = failureMode === 'none' || failureMode === 'solar';
+  const hasSun = failureMode === 'none' || failureMode === 'comms' || failureMode === 'slope';
+  const hasComms = failureMode === 'none' || failureMode === 'solar' || failureMode === 'slope';
 
   useEffect(() => {
     progressRef.current = 0;
@@ -251,6 +257,49 @@ function LandingStage({
         const eu = Math.min(1, (p - 0.68) / 0.32);
         renderExplosion(eu, 0, TOUCHDOWN_Y, 0);
       }
+    } else if (failureMode === 'slope') {
+      // Descends, touches down on a steep slope, tips over, and explodes
+      if (p < 0.45) {
+        const u = p / 0.45;
+        const eased = 1 - Math.pow(1 - u, 2);
+        rocket.position.set(0, THREE.MathUtils.lerp(2.7, TOUCHDOWN_Y, eased), 0);
+        rocket.rotation.set(0, 0, 0);
+      } else if (p < 0.72) {
+        const u = (p - 0.45) / 0.27;
+        const tipEase = u * u;
+        rocket.position.set(tipEase * 0.48, THREE.MathUtils.lerp(TOUCHDOWN_Y, 0.14, tipEase), 0);
+        rocket.rotation.set(0, 0, -tipEase * 1.48);
+      } else {
+        rocket.visible = p < 0.77;
+        rocket.position.set(0.48, 0.14, 0);
+        rocket.rotation.set(0, 0, -1.48);
+      }
+
+      if (flameRef.current) {
+        flameRef.current.visible = p < 0.46;
+        flameRef.current.scale.set(1, 0.85 + Math.sin(p * 100) * 0.15, 1);
+      }
+
+      if (beaconMatRef.current) {
+        const tipping = p >= 0.45;
+        beaconMatRef.current.color.set(tipping ? '#ef4444' : '#fbbf24');
+        beaconMatRef.current.emissive.set(tipping ? '#ef4444' : '#fbbf24');
+        beaconMatRef.current.emissiveIntensity = tipping
+          ? Math.sin(p * 80) > 0
+            ? 2.0
+            : 0.2
+          : 1.0;
+      }
+
+      if (bodyMatRef.current) {
+        bodyMatRef.current.color.set('#e2e8f0');
+        bodyMatRef.current.emissive.set('#000000');
+      }
+
+      if (p >= 0.72) {
+        const eu = Math.min(1, (p - 0.72) / 0.28);
+        renderExplosion(eu, 0.48, 0.18, 0);
+      }
     } else {
       // Critical: tumbles in darkness, crashes & explodes
       if (p < 0.58) {
@@ -354,10 +403,15 @@ function LandingStage({
       )}
 
       {/* Lunar Surface */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <circleGeometry args={[5.5, 48]} />
-        <meshStandardMaterial map={moonTexture} roughness={0.95} metalness={0.02} />
-      </mesh>
+      <group
+        rotation={[0, 0, failureMode === 'slope' ? -0.34 : 0]}
+        position={[0, failureMode === 'slope' ? -0.05 : 0, 0]}
+      >
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[5.5, 48]} />
+          <meshStandardMaterial map={moonTexture} roughness={0.95} metalness={0.02} />
+        </mesh>
+      </group>
 
       {/* Surface Rocks */}
       {rocks.map((r, i) => (
