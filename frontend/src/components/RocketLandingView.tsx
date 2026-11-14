@@ -512,6 +512,7 @@ export function RocketLandingView({
   isPlaying,
 }: RocketLandingViewProps) {
   const [replayCount, setReplayCount] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [phaseLabel, setPhaseLabel] = useState(() => getPhaseLabel(failureMode, 0));
   const runKey = missionRunId * 1000 + replayCount;
   const meta = MODE_LABELS[failureMode];
@@ -520,20 +521,40 @@ export function RocketLandingView({
     setPhaseLabel(getPhaseLabel(failureMode, 0));
   }, [failureMode, runKey]);
 
+  useEffect(() => {
+    if (!isExpanded) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isExpanded]);
+
   return (
-    <div className="landing-preview-card">
+    <div className={`landing-preview-card ${isExpanded ? 'is-expanded' : ''}`}>
       <div className="landing-preview-header">
         <span className={`landing-preview-title ${meta.badgeClass}`}>
           {meta.title}
         </span>
-        <button
-          type="button"
-          className="hud-btn landing-replay-btn"
-          onClick={() => setReplayCount((c) => c + 1)}
-          title="Replay landing animation"
-        >
-          ↻ Replay
-        </button>
+        <div className="landing-preview-actions">
+          <button
+            type="button"
+            className="hud-btn landing-replay-btn"
+            onClick={() => setReplayCount((c) => c + 1)}
+            title="Replay landing animation"
+          >
+            ↻ Replay
+          </button>
+          <button
+            type="button"
+            className={`hud-btn landing-replay-btn ${isExpanded ? 'is-active' : ''}`}
+            onClick={() => setIsExpanded((v) => !v)}
+            aria-expanded={isExpanded}
+            title={isExpanded ? 'Exit fullscreen' : 'Expand to fullscreen'}
+          >
+            {isExpanded ? '⤡ Close' : '⤢ Expand'}
+          </button>
+        </div>
       </div>
 
       <div className="landing-canvas-wrap">
