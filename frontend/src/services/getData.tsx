@@ -29,11 +29,11 @@ export async function getDatos(
     { method: 'GET' }
   );
   if (!response.ok) {
-    throw new Error(`No se ha podido conseguir respuesta. Código HTTP: ${response.status}`);
+    throw new Error(`Request failed. HTTP status: ${response.status}`);
   }
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
-    throw new Error('La respuesta no es JSON (verifica que el backend esté arrancado en el puerto 3001).');
+    throw new Error('Response is not JSON (verify the backend is running on port 3001).');
   }
   const data = (await response.json()) as StellarData;
   return data;

@@ -24,30 +24,30 @@ const DEBRIS_VECTORS: [number, number, number][] = [
 ];
 
 const MODE_LABELS: Record<FailureMode, { title: string; badgeClass: string }> = {
-  none: { title: 'Aterrizaje nominal', badgeClass: 'success' },
-  comms: { title: 'Fallo: Sin línea de visión', badgeClass: 'failed' },
-  solar: { title: 'Fallo: Sin iluminación solar', badgeClass: 'failed' },
-  critical: { title: 'Fallo crítico: Sin luz ni enlace', badgeClass: 'failed' },
+  none: { title: 'Nominal Landing', badgeClass: 'success' },
+  comms: { title: 'Failure: No Line of Sight', badgeClass: 'failed' },
+  solar: { title: 'Failure: No Solar Illumination', badgeClass: 'failed' },
+  critical: { title: 'Critical Failure: No Sun or Link', badgeClass: 'failed' },
 };
 
 function getPhaseLabel(mode: FailureMode, p: number): string {
   if (mode === 'none') {
-    if (p < 0.65) return 'Descenso controlado con retropropulsores';
-    if (p < 0.8) return 'Contacto con la superficie lunar';
-    return 'Aterrizaje exitoso — Sistemas activos';
+    if (p < 0.65) return 'Controlled descent with retro-thrusters';
+    if (p < 0.8) return 'Lunar surface touchdown';
+    return 'Landing successful — Systems active';
   }
   if (mode === 'comms') {
-    if (p < 0.36) return 'Descenso inicial — Buscando enlace Tierra';
-    if (p < 0.68) return 'Sin línea de visión — Pérdida de guiado';
-    return 'Impacto contra la superficie lunar';
+    if (p < 0.36) return 'Initial descent — Acquiring Earth link';
+    if (p < 0.68) return 'No line of sight — Guidance lost';
+    return 'Impact on the lunar surface';
   }
   if (mode === 'solar') {
-    if (p < 0.42) return 'Descenso en sombra lunar';
-    if (p < 0.68) return 'Aterrizaje completado — Sin energía solar, apagando...';
-    return 'Fallo térmico — Explosión en superficie';
+    if (p < 0.42) return 'Descending in lunar shadow';
+    if (p < 0.68) return 'Touchdown complete — No solar power, shutting down...';
+    return 'Thermal failure — Surface explosion';
   }
-  if (p < 0.58) return 'Descenso sin control ni iluminación';
-  return 'Impacto y explosión crítica';
+  if (p < 0.58) return 'Uncontrolled descent in darkness';
+  return 'Critical impact and explosion';
 }
 
 interface LandingStageProps {
@@ -476,9 +476,9 @@ export function RocketLandingView({
           type="button"
           className="hud-btn landing-replay-btn"
           onClick={() => setReplayCount((c) => c + 1)}
-          title="Repetir animación de aterrizaje"
+          title="Replay landing animation"
         >
-          ↻ Repetir
+          ↻ Replay
         </button>
       </div>
 
