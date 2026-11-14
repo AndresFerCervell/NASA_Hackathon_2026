@@ -63,6 +63,7 @@ export function App() {
   const [showComparison, setShowComparison] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [missionRunId, setMissionRunId] = useState(0);
 
   const [sites, setSites] = useState<LandingSite[]>(CURATED_LANDING_SITES);
   const [selectedSite, setSelectedSite] = useState<LandingSite | null>(CURATED_LANDING_SITES[0]);
@@ -122,6 +123,32 @@ export function App() {
     setDisplayJD(jd);
   }, []);
 
+  const jdToUtcDate = useCallback((jd: number) => {
+    const c = jdToCalendarUTC(jd);
+    const hr = Math.floor(c.hour);
+    const min = Math.floor((c.hour - hr) * 60);
+    return new Date(Date.UTC(c.year, c.month - 1, c.day, hr, min, 0));
+  }, []);
+
+  const handleToggleSimulate = useCallback(() => {
+    setIsPlaying((prev) => {
+      const nextPlaying = !prev;
+      if (nextPlaying) {
+        setCameraMode('geocentric');
+        setMissionRunId((id) => id + 1);
+        if (selectedSite) {
+          handlePickLandingSite(selectedSite.id, {
+            fecha: jdToUtcDate(jdRef.current),
+            lat: selectedSite.latDeg,
+            lon: selectedSite.lonDeg,
+            name: selectedSite.name,
+          });
+        }
+      }
+      return nextPlaying;
+    });
+  }, [selectedSite, handlePickLandingSite, jdToUtcDate]);
+
   const handleSelectSite = useCallback(
     (site: LandingSite) => {
       setSelectedSite(site);
@@ -180,7 +207,7 @@ export function App() {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        setIsPlaying((prev) => !prev);
+        handleToggleSimulate();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const next = clampOrWrapJD(jdRef.current + 1);
@@ -205,554 +232,557 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeTab]);
+}, [activeTab, handleToggleSimulate]);
 
-  return (
-    <div className="app-shell">
-      <div className="canvas-layer">
-        <CanvasErrorBoundary>
-          {activeTab === 'moon' ? (
-            <Canvas
-              key="moon-canvas"
-              camera={{ position: [0, -1.2, 6.2], fov: 36, near: 0.05, far: 120 }}
-              dpr={[1, 2]}
+return (
+  <div className="app-shell">
+    <div className="canvas-layer">
+      <CanvasErrorBoundary>
+        {activeTab === 'moon' ? (
+          <Canvas
+            key="moon-canvas"
+            camera={{ position: [0, -1.2, 6.2], fov: 36, near: 0.05, far: 120 }}
+            dpr={[1, 2]}
+          >
+            <Suspense fallback={null}>
+              <MoonExplorerScene
+                sites={sites}
+                selectedSiteId={selectedSite?.id ?? null}
+                onSelectSite={handleSelectSite}
+                onHoverCoords={setHoverCoords}
+                zoomTrigger={moonZoomTrigger}
+              />
+            </Suspense>
+          </Canvas>
+        ) : (
+          <Canvas
+            key="orbital-canvas"
+            camera={{ position: [0, 38, 0.01], fov: 45, near: 0.1, far: 400 }}
+            dpr={[1, 2]}
+          >
+            <Suspense fallback={null}>
+              <SolarSystemScene
+                jdRef={jdRef}
+                isPlaying={isPlaying}
+                speedHoursPerSec={speedHoursPerSec}
+                cameraMode={cameraMode}
+                showLabels={showLabels}
+                onTelemetrySample={handleTelemetrySample}
+                stellarData={stellarData}
+                selectedSite={selectedSite}
+                missionRunId={missionRunId}
+              />
+            </Suspense>
+          </Canvas>
+        )}
+      </CanvasErrorBoundary>
+    </div>
+
+    <div className="hud-overlay">
+      {/* Top Header */}
+      <header className="hud-card hud-header">
+        <div className="title-block">
+          <h1>
+            {activeTab === 'moon'
+              ? 'Luna — Explorador de Sitios NASA 3D'
+              : 'J2000.0 3D Ecliptic Ephemeris'}
+          </h1>
+          <p>
+            {formatUTCString(cal.year, cal.month, cal.day, cal.hour)} &bull; Sun-Earth-Moon
+            {apiOnline !== null && ` • ${apiOnline ? 'API Connected' : 'Local Ephemeris'}`}
+          </p>
+        </div>
+
+        <div className="toolbar">
+          {/* Primary Tab Switcher */}
+          <div className="btn-group" role="tablist" aria-label="Vista principal">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'moon'}
+              className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('moon')}
             >
-              <Suspense fallback={null}>
-                <MoonExplorerScene
-                  sites={sites}
-                  selectedSiteId={selectedSite?.id ?? null}
-                  onSelectSite={handleSelectSite}
-                  onHoverCoords={setHoverCoords}
-                  zoomTrigger={moonZoomTrigger}
-                />
-              </Suspense>
-            </Canvas>
-          ) : (
-            <Canvas
-              key="orbital-canvas"
-              camera={{ position: [0, 38, 0.01], fov: 45, near: 0.1, far: 400 }}
-              dpr={[1, 2]}
+              Globo Lunar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'orbital'}
+              className={`hud-btn ${activeTab === 'orbital' ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('orbital')}
             >
-              <Suspense fallback={null}>
-                <SolarSystemScene
-                  jdRef={jdRef}
-                  isPlaying={isPlaying}
-                  speedHoursPerSec={speedHoursPerSec}
-                  cameraMode={cameraMode}
-                  showLabels={showLabels}
-                  onTelemetrySample={handleTelemetrySample}
-                />
-              </Suspense>
-            </Canvas>
+              Simulador Orbital
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`hud-btn ${showComparison ? 'is-active' : ''}`}
+            aria-pressed={showComparison}
+            onClick={() => setShowComparison((v) => !v)}
+          >
+            Comparar sitios
+          </button>
+
+          {activeTab === 'orbital' && (
+            <>
+              <div className="btn-group" role="group" aria-label="Camera mode">
+                <button
+                  type="button"
+                  className={`hud-btn ${cameraMode === 'zenithal' ? 'is-active' : ''}`}
+                  onClick={() => setCameraMode('zenithal')}
+                >
+                  Zenital (Top)
+                </button>
+                <button
+                  type="button"
+                  className={`hud-btn ${cameraMode === 'heliocentric' ? 'is-active' : ''}`}
+                  onClick={() => setCameraMode('heliocentric')}
+                >
+                  Heliocentric 3D
+                </button>
+                <button
+                  type="button"
+                  className={`hud-btn ${cameraMode === 'geocentric' ? 'is-active' : ''}`}
+                  onClick={() => setCameraMode('geocentric')}
+                >
+                  Geocentric
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className={`hud-btn ${showLabels ? 'is-active' : ''}`}
+                aria-pressed={showLabels}
+                onClick={() => setShowLabels((v) => !v)}
+              >
+                Labels
+              </button>
+
+              <button
+                type="button"
+                className={`hud-btn ${showAdvancedTelemetry ? 'is-active' : ''}`}
+                aria-pressed={showAdvancedTelemetry}
+                aria-expanded={showAdvancedTelemetry}
+                aria-controls="advanced-telemetry-panel"
+                onClick={() => setShowAdvancedTelemetry((v) => !v)}
+              >
+                {showAdvancedTelemetry ? 'Ocultar telemetría' : 'Vista avanzada'}
+              </button>
+
+              <button
+                type="button"
+                className={`hud-btn play-btn ${isPlaying ? 'is-playing' : ''}`}
+                aria-pressed={isPlaying}
+                onClick={handleToggleSimulate}
+              >
+                {isPlaying ? 'Pause' : 'Simulate'}
+              </button>
+
+              <div className="btn-group" role="radiogroup" aria-label="Simulation speed">
+                {[
+                  { label: '1h/s', speed: 1 },
+                  { label: '1d/s', speed: 24 },
+                  { label: '1mo/s', speed: 730 },
+                ].map((item) => (
+                  <button
+                    key={item.speed}
+                    type="button"
+                    role="radio"
+                    aria-checked={speedHoursPerSec === item.speed}
+                    className={`hud-btn ${speedHoursPerSec === item.speed ? 'is-active' : ''}`}
+                    onClick={() => setSpeedHoursPerSec(item.speed)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
-        </CanvasErrorBoundary>
-      </div>
+        </div>
+      </header>
 
-      <div className="hud-overlay">
-        {/* Top Header */}
-        <header className="hud-card hud-header">
-          <div className="title-block">
-            <h1>
-              {activeTab === 'moon'
-                ? 'Luna — Explorador de Sitios NASA 3D'
-                : 'J2000.0 3D Ecliptic Ephemeris'}
-            </h1>
+      {/* Side-by-Side Comparison Drawer (available in both tabs) */}
+      {showComparison && (
+        <section className="hud-card comparison-panel" aria-label="Comparativa de sitios lunares">
+          <div className="comparison-grid">
+            {comparisonRows.map(({ site, impact }) => (
+              <div
+                key={site.id}
+                className={`compare-card ${selectedSite?.id === site.id ? 'is-selected' : ''}`}
+              >
+                <div className="compare-card-head">
+                  <div>
+                    <span className="compare-program">{site.program}</span>
+                    <div>
+                      <strong>{site.name}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div className="compare-metrics">
+                  <span>
+                    {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
+                  </span>
+                  {site.dateLabel && <span>Fecha: {site.dateLabel}</span>}
+                </div>
+                <div className="compare-metrics">
+                  <span>
+                    {impact.sunHits ? '☀ Impacta el Sol' : '🌑 En sombra'} (
+                    {impact.elevationDeg >= 0 ? '+' : ''}
+                    {impact.elevationDeg.toFixed(1)}&deg;)
+                  </span>
+                  <span>
+                    {impact.earthVisible ? '📡 Tierra visible' : 'Sin vista Tierra'} (
+                    {impact.earthElevationDeg >= 0 ? '+' : ''}
+                    {impact.earthElevationDeg.toFixed(1)}&deg;)
+                  </span>
+                </div>
+                <div className="compare-actions">
+                  <button
+                    type="button"
+                    className="hud-btn is-active"
+                    onClick={() => handleSelectSite(site)}
+                  >
+                    Ver en órbita
+                  </button>
+                  <a
+                    className="quickmap-link"
+                    href={getQuickmapUrl(site.latDeg, site.lonDeg)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    LROC QuickMap ↗
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Initial Tab: 3D Moon Explorer Overlay */}
+      {activeTab === 'moon' ? (
+        <>
+          <div className="moon-hero">
+            <div className="moon-hero-eyebrow">01 — Sitios de alunizaje NASA</div>
+            <h2>Luna.</h2>
             <p>
-              {formatUTCString(cal.year, cal.month, cal.day, cal.hour)} &bull; Sun-Earth-Moon
-              {apiOnline !== null && ` • ${apiOnline ? 'API Connected' : 'Local Ephemeris'}`}
+              Gira el globo lunar y pincha en cualquiera de las misiones precargadas (o añade tus
+              propias coordenadas) para abrir la vista cenital en su fecha oficial y comprobar su
+              iluminación solar.
             </p>
           </div>
 
-          <div className="toolbar">
-            {/* Primary Tab Switcher */}
-            <div className="btn-group" role="tablist" aria-label="Vista principal">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'moon'}
-                className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
-                onClick={() => setActiveTab('moon')}
-              >
-                Globo Lunar
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'orbital'}
-                className={`hud-btn ${activeTab === 'orbital' ? 'is-active' : ''}`}
-                onClick={() => setActiveTab('orbital')}
-              >
-                Simulador Orbital
-              </button>
+          <div className="moon-bottom-row">
+            <div className="hud-card moon-coords-card">
+              <span className="moon-hero-eyebrow">Punto bajo el cursor</span>
+              <strong className="moon-coords-val">{hoverCoords}</strong>
             </div>
 
-            <button
-              type="button"
-              className={`hud-btn ${showComparison ? 'is-active' : ''}`}
-              aria-pressed={showComparison}
-              onClick={() => setShowComparison((v) => !v)}
-            >
-              Comparar sitios
-            </button>
-
-            {activeTab === 'orbital' && (
-              <>
-                <div className="btn-group" role="group" aria-label="Camera mode">
-                  <button
-                    type="button"
-                    className={`hud-btn ${cameraMode === 'zenithal' ? 'is-active' : ''}`}
-                    onClick={() => setCameraMode('zenithal')}
-                  >
-                    Zenital (Top)
-                  </button>
-                  <button
-                    type="button"
-                    className={`hud-btn ${cameraMode === 'heliocentric' ? 'is-active' : ''}`}
-                    onClick={() => setCameraMode('heliocentric')}
-                  >
-                    Heliocentric 3D
-                  </button>
-                  <button
-                    type="button"
-                    className={`hud-btn ${cameraMode === 'geocentric' ? 'is-active' : ''}`}
-                    onClick={() => setCameraMode('geocentric')}
-                  >
-                    Geocentric
-                  </button>
-                </div>
-
+            <div className="hud-card sites-bar" role="group" aria-label="Misiones y sitios lunares">
+              {sites.map((site) => (
                 <button
-                  type="button"
-                  className={`hud-btn ${showLabels ? 'is-active' : ''}`}
-                  aria-pressed={showLabels}
-                  onClick={() => setShowLabels((v) => !v)}
-                >
-                  Labels
-                </button>
-
-                <button
-                  type="button"
-                  className={`hud-btn ${showAdvancedTelemetry ? 'is-active' : ''}`}
-                  aria-pressed={showAdvancedTelemetry}
-                  aria-expanded={showAdvancedTelemetry}
-                  aria-controls="advanced-telemetry-panel"
-                  onClick={() => setShowAdvancedTelemetry((v) => !v)}
-                >
-                  {showAdvancedTelemetry ? 'Ocultar telemetría' : 'Vista avanzada'}
-                </button>
-
-                <button
-                  type="button"
-                  className={`hud-btn play-btn ${isPlaying ? 'is-playing' : ''}`}
-                  aria-pressed={isPlaying}
-                  onClick={() => setIsPlaying((v) => !v)}
-                >
-                  {isPlaying ? 'Pause' : 'Simulate'}
-                </button>
-
-                <div className="btn-group" role="radiogroup" aria-label="Simulation speed">
-                  {[
-                    { label: '1h/s', speed: 1 },
-                    { label: '1d/s', speed: 24 },
-                    { label: '1mo/s', speed: 730 },
-                  ].map((item) => (
-                    <button
-                      key={item.speed}
-                      type="button"
-                      role="radio"
-                      aria-checked={speedHoursPerSec === item.speed}
-                      className={`hud-btn ${speedHoursPerSec === item.speed ? 'is-active' : ''}`}
-                      onClick={() => setSpeedHoursPerSec(item.speed)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </header>
-
-        {/* Side-by-Side Comparison Drawer (available in both tabs) */}
-        {showComparison && (
-          <section className="hud-card comparison-panel" aria-label="Comparativa de sitios lunares">
-            <div className="comparison-grid">
-              {comparisonRows.map(({ site, impact }) => (
-                <div
                   key={site.id}
-                  className={`compare-card ${selectedSite?.id === site.id ? 'is-selected' : ''}`}
+                  type="button"
+                  className="site-pill"
+                  onClick={() => handleSelectSite(site)}
+                  title={site.dateLabel ? `Fecha: ${site.dateLabel}` : site.region}
                 >
-                  <div className="compare-card-head">
-                    <div>
-                      <span className="compare-program">{site.program}</span>
-                      <div>
-                        <strong>{site.name}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="compare-metrics">
-                    <span>
-                      {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
-                    </span>
-                    {site.dateLabel && <span>Fecha: {site.dateLabel}</span>}
-                  </div>
-                  <div className="compare-metrics">
-                    <span>
-                      {impact.sunHits ? '☀ Impacta el Sol' : '🌑 En sombra'} (
-                      {impact.elevationDeg >= 0 ? '+' : ''}
-                      {impact.elevationDeg.toFixed(1)}&deg;)
-                    </span>
-                    <span>
-                      {impact.earthVisible ? '📡 Tierra visible' : 'Sin vista Tierra'} (
-                      {impact.earthElevationDeg >= 0 ? '+' : ''}
-                      {impact.earthElevationDeg.toFixed(1)}&deg;)
-                    </span>
-                  </div>
-                  <div className="compare-actions">
-                    <button
-                      type="button"
-                      className="hud-btn is-active"
-                      onClick={() => handleSelectSite(site)}
-                    >
-                      Ver en órbita
-                    </button>
-                    <a
-                      className="quickmap-link"
-                      href={getQuickmapUrl(site.latDeg, site.lonDeg)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LROC QuickMap ↗
-                    </a>
-                  </div>
-                </div>
+                  <span className={`site-dot ${site.pole}`} />
+                  <span>{site.name}</span>
+                </button>
               ))}
-            </div>
-          </section>
-        )}
 
-        {/* Initial Tab: 3D Moon Explorer Overlay */}
-        {activeTab === 'moon' ? (
-          <>
-            <div className="moon-hero">
-              <div className="moon-hero-eyebrow">01 — Sitios de alunizaje NASA</div>
-              <h2>Luna.</h2>
-              <p>
-                Gira el globo lunar y pincha en cualquiera de las misiones precargadas (o añade tus
-                propias coordenadas) para abrir la vista cenital en su fecha oficial y comprobar su
-                iluminación solar.
-              </p>
+              <button
+                type="button"
+                className={`hud-btn ${showCustomForm ? 'is-active' : ''}`}
+                onClick={() => setShowCustomForm((v) => !v)}
+              >
+                + Coordenadas
+              </button>
             </div>
 
-            <div className="moon-bottom-row">
-              <div className="hud-card moon-coords-card">
-                <span className="moon-hero-eyebrow">Punto bajo el cursor</span>
-                <strong className="moon-coords-val">{hoverCoords}</strong>
+            {showCustomForm && (
+              <form className="hud-card custom-site-form" onSubmit={handleAddCustomSite}>
+                <div className="custom-field">
+                  <label htmlFor="custom-name">Nombre</label>
+                  <input
+                    id="custom-name"
+                    className="name-input"
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                  />
+                </div>
+                <div className="custom-field">
+                  <label htmlFor="custom-lat">Lat (-90..90)</label>
+                  <input
+                    id="custom-lat"
+                    type="number"
+                    step="0.01"
+                    min={-90}
+                    max={90}
+                    value={customLat}
+                    onChange={(e) => setCustomLat(e.target.value)}
+                  />
+                </div>
+                <div className="custom-field">
+                  <label htmlFor="custom-lon">Lon (-180..180)</label>
+                  <input
+                    id="custom-lon"
+                    type="number"
+                    step="0.01"
+                    min={-180}
+                    max={180}
+                    value={customLon}
+                    onChange={(e) => setCustomLon(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className="hud-btn is-active">
+                  Añadir y ver
+                </button>
+              </form>
+            )}
+
+            <div className="hud-card btn-group" aria-label="Controles de cámara lunar">
+              <button
+                type="button"
+                className="hud-btn"
+                aria-label="Alejar"
+                onClick={() =>
+                  setMoonZoomTrigger((prev) => ({ seq: (prev?.seq ?? 0) + 1, factor: 1.25 }))
+                }
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="hud-btn"
+                aria-label="Acercar"
+                onClick={() =>
+                  setMoonZoomTrigger((prev) => ({ seq: (prev?.seq ?? 0) + 1, factor: 0.78 }))
+                }
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="hud-btn"
+                aria-label="Restablecer vista"
+                onClick={() =>
+                  setMoonZoomTrigger((prev) => ({
+                    seq: (prev?.seq ?? 0) + 1,
+                    factor: 1,
+                    reset: true,
+                  }))
+                }
+              >
+                ↺
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Orbital Simulator Tab: Solar Impact Box + Optional Advanced Telemetry + Date Controls */
+        <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
+          {selectedSite && solarImpact && (
+            <div className="hud-card solar-impact-card" role="status" aria-live="polite">
+              <div className={`solar-badge ${solarImpact.sunHits ? 'lit' : 'shadow'}`}>
+                <span>{solarImpact.sunHits ? '☀' : '🌑'}</span>
+                <span>
+                  {solarImpact.sunHits ? 'Impacta el Sol' : 'En sombra (sin luz solar)'}
+                </span>
               </div>
 
-              <div className="hud-card sites-bar" role="group" aria-label="Misiones y sitios lunares">
+              <div className="solar-meta">
+                <strong>
+                  {stellarData?.name ?? selectedSite.name} &middot;{' '}
+                  {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
+                </strong>
+                <span>
+                  Elevación solar: {solarImpact.elevationDeg >= 0 ? '+' : ''}
+                  {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
+                  {solarImpact.earthVisible ? 'Tierra visible (Comms OK)' : 'Sin vista directa a Tierra'}
+                </span>
+                {isStellarLoading && <span>Consultando viabilidad en backend...</span>}
+                {stellarError && <span>{stellarError}</span>}
+                {stellarData && (
+                  <span>
+                    Viabilidad: <strong>{stellarData.funciona ? 'Apto' : 'No apto'}</strong> &bull;{' '}
+                    {stellarData.tipo_despegue}
+                    {stellarData.tipo_fallo !== 'Ninguno' ? ` • Fallo: ${stellarData.tipo_fallo}` : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="btn-group">
                 {sites.map((site) => (
                   <button
                     key={site.id}
                     type="button"
-                    className="site-pill"
+                    className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
                     onClick={() => handleSelectSite(site)}
-                    title={site.dateLabel ? `Fecha: ${site.dateLabel}` : site.region}
                   >
-                    <span className={`site-dot ${site.pole}`} />
-                    <span>{site.name}</span>
+                    {site.name}
                   </button>
                 ))}
-
-                <button
-                  type="button"
-                  className={`hud-btn ${showCustomForm ? 'is-active' : ''}`}
-                  onClick={() => setShowCustomForm((v) => !v)}
-                >
-                  + Coordenadas
-                </button>
               </div>
 
-              {showCustomForm && (
-                <form className="hud-card custom-site-form" onSubmit={handleAddCustomSite}>
-                  <div className="custom-field">
-                    <label htmlFor="custom-name">Nombre</label>
-                    <input
-                      id="custom-name"
-                      className="name-input"
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                    />
-                  </div>
-                  <div className="custom-field">
-                    <label htmlFor="custom-lat">Lat (-90..90)</label>
-                    <input
-                      id="custom-lat"
-                      type="number"
-                      step="0.01"
-                      min={-90}
-                      max={90}
-                      value={customLat}
-                      onChange={(e) => setCustomLat(e.target.value)}
-                    />
-                  </div>
-                  <div className="custom-field">
-                    <label htmlFor="custom-lon">Lon (-180..180)</label>
-                    <input
-                      id="custom-lon"
-                      type="number"
-                      step="0.01"
-                      min={-180}
-                      max={180}
-                      value={customLon}
-                      onChange={(e) => setCustomLon(e.target.value)}
-                    />
-                  </div>
-                  <button type="submit" className="hud-btn is-active">
-                    Añadir y ver
-                  </button>
-                </form>
-              )}
+              <a
+                className="quickmap-link"
+                href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                LROC QuickMap ↗
+              </a>
+            </div>
+          )}
 
-              <div className="hud-card btn-group" aria-label="Controles de cámara lunar">
-                <button
-                  type="button"
-                  className="hud-btn"
-                  aria-label="Alejar"
-                  onClick={() =>
-                    setMoonZoomTrigger((prev) => ({ seq: (prev?.seq ?? 0) + 1, factor: 1.25 }))
-                  }
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn"
-                  aria-label="Acercar"
-                  onClick={() =>
-                    setMoonZoomTrigger((prev) => ({ seq: (prev?.seq ?? 0) + 1, factor: 0.78 }))
-                  }
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="hud-btn"
-                  aria-label="Restablecer vista"
-                  onClick={() =>
-                    setMoonZoomTrigger((prev) => ({
-                      seq: (prev?.seq ?? 0) + 1,
-                      factor: 1,
-                      reset: true,
-                    }))
-                  }
-                >
-                  ↺
-                </button>
+          {showAdvancedTelemetry && (
+            <div id="advanced-telemetry-panel" className="hud-card telemetry-grid">
+              <div className="tel-cell">
+                <p className="tel-label">Julian Date (JD)</p>
+                <p className="tel-val">{telemetry.JD.toFixed(4)}</p>
+                <p className="tel-sub">
+                  d = {telemetry.d >= 0 ? '+' : ''}
+                  {telemetry.d.toFixed(2)} d (J2000)
+                </p>
+              </div>
+              <div className="tel-cell">
+                <p className="tel-label">Earth Longitude (&lambda;E)</p>
+                <p className="tel-val">{telemetry.lambdaE.toFixed(2)}&deg;</p>
+                <p className="tel-sub">&lambda;Sun = {telemetry.lambdaSun.toFixed(2)}&deg;</p>
+              </div>
+              <div className="tel-cell">
+                <p className="tel-label">Earth Radius (rE)</p>
+                <p className="tel-val">{telemetry.rE_AU.toFixed(5)} AU</p>
+                <p className="tel-sub">{Math.round(telemetry.rE_km).toLocaleString('en-US')} km</p>
+              </div>
+              <div className="tel-cell">
+                <p className="tel-label">Moon Longitude (&lambda;M)</p>
+                <p className="tel-val">{telemetry.lambdaM.toFixed(2)}&deg;</p>
+                <p className="tel-sub">rM = {Math.round(telemetry.rM_km).toLocaleString('en-US')} km</p>
+              </div>
+              <div className="tel-cell">
+                <p className="tel-label">Lunar Illumination</p>
+                <div className="tel-phase-row">
+                  <LunarPhaseIcon elongation={telemetry.elongation} />
+                  <div>
+                    <p className="tel-val">{(telemetry.illuminatedFraction * 100).toFixed(1)}%</p>
+                    <p className="tel-sub">{telemetry.phaseName}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="tel-cell">
+                <p className="tel-label">Sidereal Spin (GMST)</p>
+                <p className="tel-val">{telemetry.GMST_deg.toFixed(1)}&deg;</p>
+                <p className="tel-sub">vE = {telemetry.v_E.toFixed(2)}&deg;</p>
               </div>
             </div>
-          </>
-        ) : (
-          /* Orbital Simulator Tab: Solar Impact Box + Optional Advanced Telemetry + Date Controls */
-          <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
-            {selectedSite && solarImpact && (
-              <div className="hud-card solar-impact-card" role="status" aria-live="polite">
-                <div className={`solar-badge ${solarImpact.sunHits ? 'lit' : 'shadow'}`}>
-                  <span>{solarImpact.sunHits ? '☀' : '🌑'}</span>
-                  <span>
-                    {solarImpact.sunHits ? 'Impacta el Sol' : 'En sombra (sin luz solar)'}
-                  </span>
-                </div>
+          )}
 
-                <div className="solar-meta">
-                  <strong>
-                    {stellarData?.name ?? selectedSite.name} &middot;{' '}
-                    {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
-                  </strong>
-                  <span>
-                    Elevación solar: {solarImpact.elevationDeg >= 0 ? '+' : ''}
-                    {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
-                    {solarImpact.earthVisible ? 'Tierra visible (Comms OK)' : 'Sin vista directa a Tierra'}
-                  </span>
-                  {isStellarLoading && <span>Consultando viabilidad en backend...</span>}
-                  {stellarError && <span>{stellarError}</span>}
-                  {stellarData && (
-                    <span>
-                      Viabilidad: <strong>{stellarData.funciona ? 'Apto' : 'No apto'}</strong> &bull;{' '}
-                      {stellarData.tipo_despegue}
-                      {stellarData.tipo_fallo !== 'Ninguno' ? ` • Fallo: ${stellarData.tipo_fallo}` : ''}
-                    </span>
-                  )}
+          <div className="hud-card">
+            <div className="controls-grid">
+              <div className="control-cell">
+                <div className="control-top">
+                  <label htmlFor="ctrl-year">Year (1900–2100)</label>
+                  <span className="control-val">{cal.year}</span>
                 </div>
+                <input
+                  id="ctrl-year"
+                  type="range"
+                  min={1900}
+                  max={2100}
+                  step={1}
+                  value={cal.year}
+                  onChange={(e) =>
+                    setCalendarUTC(parseInt(e.target.value, 10), cal.month, cal.day, cal.hour)
+                  }
+                />
+              </div>
 
-                <div className="btn-group">
-                  {sites.map((site) => (
-                    <button
-                      key={site.id}
-                      type="button"
-                      className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
-                      onClick={() => handleSelectSite(site)}
-                    >
-                      {site.name}
-                    </button>
+              <div className="control-cell">
+                <div className="control-top">
+                  <label htmlFor="ctrl-month">Month (UTC)</label>
+                  <span className="control-val">M = {cal.month}</span>
+                </div>
+                <select
+                  id="ctrl-month"
+                  value={cal.month}
+                  onChange={(e) =>
+                    setCalendarUTC(cal.year, parseInt(e.target.value, 10), cal.day, cal.hour)
+                  }
+                >
+                  {[
+                    '01 — January',
+                    '02 — February',
+                    '03 — March',
+                    '04 — April',
+                    '05 — May',
+                    '06 — June',
+                    '07 — July',
+                    '08 — August',
+                    '09 — September',
+                    '10 — October',
+                    '11 — November',
+                    '12 — December',
+                  ].map((label, idx) => (
+                    <option key={label} value={idx + 1}>
+                      {label}
+                    </option>
                   ))}
-                </div>
-
-                <a
-                  className="quickmap-link"
-                  href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LROC QuickMap ↗
-                </a>
-              </div>
-            )}
-
-            {showAdvancedTelemetry && (
-              <div id="advanced-telemetry-panel" className="hud-card telemetry-grid">
-                <div className="tel-cell">
-                  <p className="tel-label">Julian Date (JD)</p>
-                  <p className="tel-val">{telemetry.JD.toFixed(4)}</p>
-                  <p className="tel-sub">
-                    d = {telemetry.d >= 0 ? '+' : ''}
-                    {telemetry.d.toFixed(2)} d (J2000)
-                  </p>
-                </div>
-                <div className="tel-cell">
-                  <p className="tel-label">Earth Longitude (&lambda;E)</p>
-                  <p className="tel-val">{telemetry.lambdaE.toFixed(2)}&deg;</p>
-                  <p className="tel-sub">&lambda;Sun = {telemetry.lambdaSun.toFixed(2)}&deg;</p>
-                </div>
-                <div className="tel-cell">
-                  <p className="tel-label">Earth Radius (rE)</p>
-                  <p className="tel-val">{telemetry.rE_AU.toFixed(5)} AU</p>
-                  <p className="tel-sub">{Math.round(telemetry.rE_km).toLocaleString('en-US')} km</p>
-                </div>
-                <div className="tel-cell">
-                  <p className="tel-label">Moon Longitude (&lambda;M)</p>
-                  <p className="tel-val">{telemetry.lambdaM.toFixed(2)}&deg;</p>
-                  <p className="tel-sub">rM = {Math.round(telemetry.rM_km).toLocaleString('en-US')} km</p>
-                </div>
-                <div className="tel-cell">
-                  <p className="tel-label">Lunar Illumination</p>
-                  <div className="tel-phase-row">
-                    <LunarPhaseIcon elongation={telemetry.elongation} />
-                    <div>
-                      <p className="tel-val">{(telemetry.illuminatedFraction * 100).toFixed(1)}%</p>
-                      <p className="tel-sub">{telemetry.phaseName}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="tel-cell">
-                  <p className="tel-label">Sidereal Spin (GMST)</p>
-                  <p className="tel-val">{telemetry.GMST_deg.toFixed(1)}&deg;</p>
-                  <p className="tel-sub">vE = {telemetry.v_E.toFixed(2)}&deg;</p>
-                </div>
-              </div>
-            )}
-
-            <div className="hud-card">
-              <div className="controls-grid">
-                <div className="control-cell">
-                  <div className="control-top">
-                    <label htmlFor="ctrl-year">Year (1900–2100)</label>
-                    <span className="control-val">{cal.year}</span>
-                  </div>
-                  <input
-                    id="ctrl-year"
-                    type="range"
-                    min={1900}
-                    max={2100}
-                    step={1}
-                    value={cal.year}
-                    onChange={(e) =>
-                      setCalendarUTC(parseInt(e.target.value, 10), cal.month, cal.day, cal.hour)
-                    }
-                  />
-                </div>
-
-                <div className="control-cell">
-                  <div className="control-top">
-                    <label htmlFor="ctrl-month">Month (UTC)</label>
-                    <span className="control-val">M = {cal.month}</span>
-                  </div>
-                  <select
-                    id="ctrl-month"
-                    value={cal.month}
-                    onChange={(e) =>
-                      setCalendarUTC(cal.year, parseInt(e.target.value, 10), cal.day, cal.hour)
-                    }
-                  >
-                    {[
-                      '01 — January',
-                      '02 — February',
-                      '03 — March',
-                      '04 — April',
-                      '05 — May',
-                      '06 — June',
-                      '07 — July',
-                      '08 — August',
-                      '09 — September',
-                      '10 — October',
-                      '11 — November',
-                      '12 — December',
-                    ].map((label, idx) => (
-                      <option key={label} value={idx + 1}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="control-cell">
-                  <div className="control-top">
-                    <label htmlFor="ctrl-day">Day of Month</label>
-                    <span className="control-val">{cal.day}</span>
-                  </div>
-                  <input
-                    id="ctrl-day"
-                    type="range"
-                    min={1}
-                    max={maxDays}
-                    step={1}
-                    value={Math.min(cal.day, maxDays)}
-                    onChange={(e) =>
-                      setCalendarUTC(cal.year, cal.month, parseInt(e.target.value, 10), cal.hour)
-                    }
-                  />
-                </div>
-
-                <div className="control-cell">
-                  <div className="control-top">
-                    <label htmlFor="ctrl-hour">Hour (UTC)</label>
-                    <span className="control-val">{cal.hour.toFixed(1)}h</span>
-                  </div>
-                  <input
-                    id="ctrl-hour"
-                    type="range"
-                    min={0}
-                    max={23.9}
-                    step={0.1}
-                    value={Number(cal.hour.toFixed(1))}
-                    onChange={(e) =>
-                      setCalendarUTC(cal.year, cal.month, cal.day, parseFloat(e.target.value))
-                    }
-                  />
-                </div>
+                </select>
               </div>
 
-              <div className="hint-strip">
-                <span>Drag to orbit &bull; Scroll to zoom &bull; Right-drag to pan</span>
-                <span>Keys: &larr;/&rarr; &plusmn;1 day &bull; &uarr;/&darr; &plusmn;1 hr &bull; Space Play/Pause</span>
+              <div className="control-cell">
+                <div className="control-top">
+                  <label htmlFor="ctrl-day">Day of Month</label>
+                  <span className="control-val">{cal.day}</span>
+                </div>
+                <input
+                  id="ctrl-day"
+                  type="range"
+                  min={1}
+                  max={maxDays}
+                  step={1}
+                  value={Math.min(cal.day, maxDays)}
+                  onChange={(e) =>
+                    setCalendarUTC(cal.year, cal.month, parseInt(e.target.value, 10), cal.hour)
+                  }
+                />
+              </div>
+
+              <div className="control-cell">
+                <div className="control-top">
+                  <label htmlFor="ctrl-hour">Hour (UTC)</label>
+                  <span className="control-val">{cal.hour.toFixed(1)}h</span>
+                </div>
+                <input
+                  id="ctrl-hour"
+                  type="range"
+                  min={0}
+                  max={23.9}
+                  step={0.1}
+                  value={Number(cal.hour.toFixed(1))}
+                  onChange={(e) =>
+                    setCalendarUTC(cal.year, cal.month, cal.day, parseFloat(e.target.value))
+                  }
+                />
               </div>
             </div>
-          </section>
-        )}
-      </div>
+
+            <div className="hint-strip">
+              <span>Drag to orbit &bull; Scroll to zoom &bull; Right-drag to pan</span>
+              <span>Keys: &larr;/&rarr; &plusmn;1 day &bull; &uarr;/&darr; &plusmn;1 hr &bull; Space Play/Pause</span>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
-  );
+  </div>
+);
 }
 
 export default App;
