@@ -35,8 +35,15 @@ export function getFailureMode(
   }
   if (stellarData.funciona) return 'none';
   const fallo = stellarData.tipo_fallo.toLowerCase();
-  const noSun = fallo.includes('iluminación solar') || fallo.includes('luz solar');
-  const noComms = fallo.includes('línea de visión') || fallo.includes('enlace directo');
+  const noSun =
+    fallo.includes('solar illumination') ||
+    fallo.includes('iluminación solar') ||
+    fallo.includes('luz solar');
+  const noComms =
+    fallo.includes('line of sight') ||
+    fallo.includes('earth link') ||
+    fallo.includes('línea de visión') ||
+    fallo.includes('enlace directo');
   if (noSun && noComms) return 'critical';
   if (noComms) return 'comms';
   if (noSun) return 'solar';

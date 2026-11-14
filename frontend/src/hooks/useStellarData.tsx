@@ -30,8 +30,8 @@ export function useData() {
         }
       } catch (err) {
         if (!cancelled) {
-          console.error('Error al recuperar los datos del punto de aterrizaje', err);
-          setError('No se pudieron cargar los datos.');
+          console.error('Failed to fetch landing site data', err);
+          setError('Could not load site data.');
         }
       } finally {
         if (!cancelled) {
@@ -52,8 +52,8 @@ export function useData() {
       setActiveOptions(options);
       setActiveId(siteId);
     } catch (err) {
-      console.error('Error al seleccionar sitio de aterrizaje:', err);
-      setError('No se pudo abrir el sitio de aterrizaje.');
+      console.error('Failed to select landing site:', err);
+      setError('Could not open landing site.');
     }
   };
 

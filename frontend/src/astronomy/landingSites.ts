@@ -43,7 +43,7 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
     id: 'im1-odysseus',
     name: 'IM-1 Odysseus (Malapert A)',
     program: 'NASA CLPS',
-    region: 'Polo Sur · Malapert A',
+    region: 'South Pole · Malapert A',
     pole: 'south',
     latDeg: -80.13,
     lonDeg: 1.44,
@@ -54,7 +54,7 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
     id: 'artemis3-shackleton',
     name: 'Artemis III (Shackleton Rim)',
     program: 'NASA Artemis III',
-    region: 'Polo Sur · Peak Near Shackleton',
+    region: 'South Pole · Peak Near Shackleton',
     pole: 'south',
     latDeg: -89.68,
     lonDeg: 129.0,
@@ -81,14 +81,14 @@ export function geoPoint(latDeg: number, lonDeg: number, radius = 1.731): THREE.
   const lat = latDeg * DEG2RAD;
   const lon = lonDeg * DEG2RAD;
   return new THREE.Vector3(
-    -radius * Math.cos(lat) * Math.sin(lon),
+    radius * Math.cos(lat) * Math.sin(lon),
     radius * Math.sin(lat),
     radius * Math.cos(lat) * Math.cos(lon)
   );
 }
 
 export function formatDms(value: number, isLatitude: boolean): string {
-  const hemi = isLatitude ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'O';
+  const hemi = isLatitude ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
   const absolute = Math.abs(value);
   let degrees = Math.floor(absolute);
   let minutes = Math.round((absolute - degrees) * 60);
