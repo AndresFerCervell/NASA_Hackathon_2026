@@ -1,0 +1,517 @@
+[
+  {
+    "url": "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF",
+    "status": 206,
+    "headers": {
+      "Date": "Sat, 14 Nov 2026 15:03:03 GMT",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Powered-By": "Express",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=0",
+      "Last-Modified": "Fri, 07 Jul 2023 22:04:03 GMT",
+      "ETag": "W/\"d0d148f-18932623038\"",
+      "Content-Type": "image/tiff",
+      "Content-Range": "bytes 0-16383/218961039",
+      "Content-Length": "16384",
+      "Keep-Alive": "timeout=5, max=100",
+      "Connection": "Keep-Alive",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Security-Policy": "upgrade-insecure-requests"
+    },
+    "bytes_read": 16384,
+    "crs": "PROJCS[\"Moon (2015) - Sphere / Ocentric / South Polar\",GEOGCS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",SPHEROID[\"Moon (2015) - Sphere\",1737400,0,AUTHORITY[\"IAU\",\"30100\"]],AUTHORITY[\"IAU\",\"30100\"]],PRIMEM[\"Reference Meridian\",0,AUTHORITY[\"IAU\",\"30100\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"IAU\",\"30100\"]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH],AUTHORITY[\"IAU\",\"30135\"]]",
+    "transform": [
+      240.0,
+      0.0,
+      -931200.0,
+      0.0,
+      -240.0,
+      931200.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "bounds": [
+      -931200.0,
+      -931200.0,
+      931200.0,
+      931200.0
+    ],
+    "shape": [
+      7760,
+      7760
+    ],
+    "res": [
+      240.0,
+      240.0
+    ],
+    "nodata": NaN,
+    "scales": [
+      1.0
+    ],
+    "offsets": [
+      0.0
+    ],
+    "units": [
+      null
+    ],
+    "overviews": [
+      2,
+      4,
+      8,
+      16
+    ],
+    "image_structure": {
+      "LAYOUT": "COG",
+      "COMPRESSION": "DEFLATE",
+      "INTERLEAVE": "BAND",
+      "PREDICTOR": "3"
+    },
+    "tags": {
+      "NC_GLOBAL#Conventions": "CF-1.7",
+      "NC_GLOBAL#description": "Mean value per bin",
+      "NC_GLOBAL#GMT_version": "6.5.0_2402709_2023.01.09 [64-bit]",
+      "NC_GLOBAL#history": "gmt grdmath ldem_60s_final_adj_240mpp_surf.grd 1000.0 MUL = test.grd",
+      "NC_GLOBAL#node_offset": "1",
+      "NC_GLOBAL#title": "Produced by grdmath",
+      "x#actual_range": "{-931.2,931.2}",
+      "x#axis": "X",
+      "x#long_name": "x",
+      "y#actual_range": "{-931.2,931.2}",
+      "y#axis": "Y",
+      "y#long_name": "y",
+      "z#actual_range": "{-9127.1142578125,7024.77001953125}",
+      "z#long_name": "z",
+      "z#_FillValue": "nan",
+      "AREA_OR_POINT": "Area"
+    },
+    "blocks": [
+      [
+        512,
+        512
+      ]
+    ],
+    "sample": [
+      [
+        1272.5361328125,
+        1234.701416015625,
+        1156.5484619140625,
+        1058.03076171875,
+        956.2389526367188,
+        860.682373046875,
+        762.1350708007812,
+        676.1097412109375
+      ],
+      [
+        1264.731201171875,
+        1187.050537109375,
+        1088.3238525390625,
+        977.2257690429688,
+        875.3555297851562,
+        771.8211059570312,
+        676.4804077148438,
+        574.6253051757812
+      ],
+      [
+        1210.9697265625,
+        1119.282958984375,
+        1010.3275756835938,
+        907.6588745117188,
+        796.0162353515625,
+        680.4449462890625,
+        582.3870239257812,
+        474.9410705566406
+      ],
+      [
+        1151.4842529296875,
+        1054.012451171875,
+        945.5177612304688,
+        831.372314453125,
+        715.035888671875,
+        598.7269287109375,
+        489.3427429199219,
+        372.6542053222656
+      ],
+      [
+        1092.174072265625,
+        994.877197265625,
+        872.7389526367188,
+        747.9610595703125,
+        634.5616455078125,
+        515.3483276367188,
+        393.5102233886719,
+        271.3785095214844
+      ],
+      [
+        1027.869384765625,
+        920.50341796875,
+        794.5164794921875,
+        661.0762939453125,
+        536.4703369140625,
+        419.253662109375,
+        296.42681884765625,
+        174.7522430419922
+      ],
+      [
+        965.2574462890625,
+        846.95068359375,
+        723.3370361328125,
+        590.4267578125,
+        454.2263488769531,
+        336.2623291015625,
+        211.59100341796875,
+        84.31844329833984
+      ],
+      [
+        897.792236328125,
+        768.6824951171875,
+        640.4400634765625,
+        507.9871520996094,
+        380.5801086425781,
+        258.3770751953125,
+        130.08677673339844,
+        -5.9804816246032715
+      ]
+    ]
+  },
+  {
+    "url": "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_83S_10MPP_ADJ.TIF",
+    "status": 206,
+    "headers": {
+      "Date": "Sat, 14 Nov 2026 15:03:05 GMT",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Powered-By": "Express",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=0",
+      "Last-Modified": "Fri, 07 Jul 2023 21:55:14 GMT",
+      "ETag": "W/\"130facac0-189325a1dd0\"",
+      "Content-Type": "image/tiff",
+      "Content-Range": "bytes 0-16383/5116709568",
+      "Content-Length": "16384",
+      "Keep-Alive": "timeout=5, max=99",
+      "Connection": "Keep-Alive",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Security-Policy": "upgrade-insecure-requests"
+    },
+    "bytes_read": 16384,
+    "crs": "PROJCS[\"Moon (2015) - Sphere / Ocentric / South Polar\",GEOGCS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",SPHEROID[\"Moon (2015) - Sphere\",1737400,0,AUTHORITY[\"IAU\",\"30100\"]],AUTHORITY[\"IAU\",\"30100\"]],PRIMEM[\"Reference Meridian\",0,AUTHORITY[\"IAU\",\"30100\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"IAU\",\"30100\"]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH],AUTHORITY[\"IAU\",\"30135\"]]",
+    "transform": [
+      10.0,
+      0.0,
+      -216400.0,
+      0.0,
+      -10.0,
+      216400.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "bounds": [
+      -216400.0,
+      -216400.0,
+      216400.0,
+      216400.0
+    ],
+    "shape": [
+      43280,
+      43280
+    ],
+    "res": [
+      10.0,
+      10.0
+    ],
+    "nodata": NaN,
+    "scales": [
+      1.0
+    ],
+    "offsets": [
+      0.0
+    ],
+    "units": [
+      null
+    ],
+    "overviews": [
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "image_structure": {
+      "LAYOUT": "COG",
+      "COMPRESSION": "DEFLATE",
+      "INTERLEAVE": "BAND",
+      "PREDICTOR": "3"
+    },
+    "tags": {
+      "NC_GLOBAL#Conventions": "CF-1.7",
+      "NC_GLOBAL#GMT_version": "6.5.0_2402709_2023.01.09 [64-bit]",
+      "NC_GLOBAL#history": "gmt grdmath ldem_83s_final_adj_10mpp_surf.grd 1000.0 MUL = test.grd",
+      "NC_GLOBAL#node_offset": "1",
+      "NC_GLOBAL#title": "Produced by grdmath",
+      "x#actual_range": "{-216.4,216.4}",
+      "x#axis": "X",
+      "x#long_name": "x",
+      "y#actual_range": "{-216.4,216.4}",
+      "y#axis": "Y",
+      "y#long_name": "y",
+      "z#actual_range": "{-5725.29931640625,7027.23046875}",
+      "z#long_name": "z",
+      "z#_FillValue": "nan",
+      "AREA_OR_POINT": "Area"
+    },
+    "blocks": [
+      [
+        512,
+        512
+      ]
+    ],
+    "sample": [
+      [
+        1288.609375,
+        1286.268310546875,
+        1283.96240234375,
+        1282.202880859375,
+        1280.6170654296875,
+        1279.4984130859375,
+        1279.1739501953125,
+        1278.768798828125
+      ],
+      [
+        1288.7171630859375,
+        1286.764892578125,
+        1284.842529296875,
+        1283.0072021484375,
+        1281.290283203125,
+        1279.8035888671875,
+        1279.109375,
+        1278.5416259765625
+      ],
+      [
+        1288.82373046875,
+        1287.2066650390625,
+        1285.7850341796875,
+        1283.5985107421875,
+        1281.6868896484375,
+        1280.005615234375,
+        1278.995849609375,
+        1278.310791015625
+      ],
+      [
+        1289.044677734375,
+        1287.1041259765625,
+        1285.1707763671875,
+        1283.1993408203125,
+        1281.3179931640625,
+        1279.7823486328125,
+        1278.5535888671875,
+        1277.575927734375
+      ],
+      [
+        1288.9178466796875,
+        1286.6768798828125,
+        1284.5654296875,
+        1282.587646484375,
+        1280.81005859375,
+        1279.3472900390625,
+        1278.115478515625,
+        1277.0400390625
+      ],
+      [
+        1288.629638671875,
+        1286.38232421875,
+        1284.1588134765625,
+        1281.9847412109375,
+        1280.156494140625,
+        1278.8333740234375,
+        1277.779296875,
+        1276.806396484375
+      ],
+      [
+        1288.581787109375,
+        1286.251708984375,
+        1284.0023193359375,
+        1281.821044921875,
+        1279.380859375,
+        1278.4722900390625,
+        1277.666259765625,
+        1277.110595703125
+      ],
+      [
+        1288.5267333984375,
+        1286.075439453125,
+        1284.152587890625,
+        1282.2857666015625,
+        1280.4130859375,
+        1278.6839599609375,
+        1277.534912109375,
+        1276.9521484375
+      ]
+    ]
+  },
+  {
+    "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_surf.tif",
+    "status": 206,
+    "headers": {
+      "Date": "Sat, 14 Nov 2026 15:03:06 GMT",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Powered-By": "Express",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=0",
+      "Last-Modified": "Fri, 05 Jun 2020 18:40:02 GMT",
+      "ETag": "W/\"2715146-17285c863d0\"",
+      "Content-Type": "image/tiff",
+      "Content-Range": "bytes 0-16383/40980806",
+      "Content-Length": "16384",
+      "Keep-Alive": "timeout=5, max=98",
+      "Connection": "Keep-Alive",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Security-Policy": "upgrade-insecure-requests"
+    },
+    "bytes_read": 16384,
+    "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]",
+    "transform": [
+      5.0,
+      0.0,
+      -9000.0,
+      0.0,
+      -5.0,
+      1000.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "bounds": [
+      -9000.0,
+      -15000.0,
+      7000.0,
+      1000.0
+    ],
+    "shape": [
+      3200,
+      3200
+    ],
+    "res": [
+      5.0,
+      5.0
+    ],
+    "nodata": NaN,
+    "scales": [
+      1.0
+    ],
+    "offsets": [
+      0.0
+    ],
+    "units": [
+      null
+    ],
+    "overviews": [],
+    "image_structure": {
+      "INTERLEAVE": "BAND"
+    },
+    "tags": {
+      "NC_GLOBAL#Conventions": "COARDS, CF-1.5",
+      "NC_GLOBAL#GMT_version": "5.4.5 [64-bit]",
+      "NC_GLOBAL#history": "xyz2grd -bi3 -I5 -R-9.00000000000e+03/7.00000000000e+03/-1.50000000000e+04/1.00000000000e+03 -Gtest.grd -r",
+      "NC_GLOBAL#node_offset": "1",
+      "x#actual_range": "{-9000,7000}",
+      "x#long_name": "x",
+      "y#actual_range": "{-15000,1000}",
+      "y#long_name": "y",
+      "z#actual_range": "{-2847.877197265625,1805.072631835938}",
+      "z#long_name": "z",
+      "z#_FillValue": "nan",
+      "AREA_OR_POINT": "Area"
+    },
+    "blocks": [
+      [
+        1,
+        3200
+      ]
+    ],
+    "sample": [
+      [
+        767.9786376953125,
+        764.6425170898438,
+        761.5587158203125,
+        758.493896484375,
+        755.4505004882812,
+        752.5630493164062,
+        749.6663818359375,
+        746.1646728515625
+      ],
+      [
+        767.6083984375,
+        764.474365234375,
+        761.3788452148438,
+        758.275390625,
+        755.1654052734375,
+        752.20068359375,
+        749.584716796875,
+        745.3775024414062
+      ],
+      [
+        767.3030395507812,
+        764.2808837890625,
+        761.2177124023438,
+        758.068359375,
+        754.7238159179688,
+        751.1970825195312,
+        747.9412231445312,
+        743.6356811523438
+      ],
+      [
+        767.0677490234375,
+        764.1253051757812,
+        761.1351928710938,
+        758.05419921875,
+        754.6366577148438,
+        751.13916015625,
+        747.7457275390625,
+        744.2317504882812
+      ],
+      [
+        766.8965454101562,
+        764.0009155273438,
+        761.0836181640625,
+        758.1856689453125,
+        754.6307373046875,
+        751.1812133789062,
+        747.8677978515625,
+        744.6580810546875
+      ],
+      [
+        766.80419921875,
+        763.854736328125,
+        760.8057861328125,
+        757.698486328125,
+        754.3427124023438,
+        751.099609375,
+        747.9349975585938,
+        744.8441162109375
+      ],
+      [
+        766.88916015625,
+        763.75048828125,
+        760.5166015625,
+        757.2778930664062,
+        753.96875,
+        750.955322265625,
+        747.9375610351562,
+        744.8894653320312
+      ],
+      [
+        767.1338500976562,
+        763.55517578125,
+        760.1902465820312,
+        756.974609375,
+        753.8397827148438,
+        750.8870239257812,
+        747.9607543945312,
+        744.8583984375
+      ]
+    ]
+  }
+]

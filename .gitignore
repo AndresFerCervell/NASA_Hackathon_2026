@@ -45,8 +45,14 @@ backend/data/*.bsp
 __pycache__
 *.pyc
 
+*.tiff
+*.TIF
+*.tif
+*.img
+*.IMG
+
+# Archivos basura generados por Windows en WSL
+*:Zone.Identifier
+
 # scripts
 .build_lola_notebook.py
-
-Pruebas_COG_LOLA
-Pruebas_COG_LOLA.ipynb
