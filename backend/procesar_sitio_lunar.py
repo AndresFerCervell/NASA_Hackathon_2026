@@ -20,6 +20,7 @@ if str(RAIZ_REPO) not in sys.path:
 from LOLA_Terreno.terreno_lola import calcular_terreno
 from efemerides_lunar import DECIMALES, DURACION_HORAS, PASO_HORAS, generar_efemerides
 
+from calculos import LandingSiteEvaluator
 CARPETA_SALIDA = RAIZ_REPO / "datos_lunares"
 
 # Valores por defecto de ejemplo
@@ -68,12 +69,46 @@ def procesar_peticion_frontend(
         decimales=DECIMALES,
         salida=ruta_efemerides,
     )
+   
 
-    # 3. Guardar también un JSON combinado con terreno + efemérides en la misma carpeta
+# 3. Guardar también un JSON combinado con terreno + efemérides en la misma carpeta
+    # (MODIFICADO para coincidir con la entrada del evaluador)
+    clave_sitio = f"sitio_{abs(latitud)}_{abs(longitud)}".replace(".", "_")
+    
     resultado_combinado = {
-        **datos_terreno,
-        **datos_efemerides,
+        "sitios": {
+            clave_sitio: {
+                "nombre": nombre,
+                "lat": float(latitud),
+                "lon": float(longitud),
+                "elevacion_m": altura_m,
+                "pendiente_deg": float(datos_terreno.get("pendiente_deg", 0.0)),
+                "horizonte_360": datos_terreno.get("horizonte_360", [])
+            }
+        },
+        "ephemeris": {
+            "t0_aterrizaje": str(tiempo),
+            "timeline": datos_efemerides.get("ephemeris", []) # <--- CAMBIO REALIZADO AQUÍ
+        }
     }
+
+    # Instancias la clase (puedes pasarle los parámetros que quieras)
+    evaluador = LandingSiteEvaluator(min_angulo_solar_deg=5.0)
+    
+    # Le pasas el resultado_combinado que acabas de construir
+    resultados_evaluacion = evaluador.evaluar_dataset_completo(resultado_combinado)
+    
+    # Opcional: Si quieres guardar la evaluación también en un archivo JSON:
+    ruta_evaluacion = carpeta / "evaluacion.json"
+    ruta_evaluacion.write_text(
+        json.dumps(resultados_evaluacion, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    
+    ruta_combinado.write_text(
+        json.dumps(resultado_combinado, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     ruta_combinado.write_text(
         json.dumps(resultado_combinado, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -85,9 +120,11 @@ def procesar_peticion_frontend(
             "terreno": str(ruta_terreno.resolve()),
             "efemerides": str(ruta_efemerides.resolve()),
             "combinado": str(ruta_combinado.resolve()),
+            "evaluacion": str(ruta_evaluacion.resolve()), # Añadimos la ruta del archivo
         },
         "terreno": datos_terreno,
         "efemerides": datos_efemerides,
+        "evaluacion": resultados_evaluacion, # <--- ESTO ES LO QUE FALTABA
     }
 
 
@@ -112,3 +149,12 @@ if __name__ == "__main__":
     print(f"Archivos generados en {res['carpeta']}:")
     for clave, ruta in res["archivos"].items():
         print(f"  - {clave}: {ruta}")
+    
+    # AÑADE ESTO: Imprimir el resultado de la evaluación en pantalla
+    print("\n" + "="*50)
+    print("RESULTADO DE LA EVALUACIÓN DEL SITIO:")
+    print("="*50)
+    
+    # Extraemos la evaluación del diccionario de respuesta y la imprimimos en formato JSON
+    evaluacion_json = json.dumps(res["evaluacion"], indent=2, ensure_ascii=False)
+    print(evaluacion_json)
