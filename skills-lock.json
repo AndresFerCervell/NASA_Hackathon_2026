@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "skills": {
+    "threejs-r3f": {
+      "source": "cesartevisual/threejs-skills",
+      "sourceType": "github",
+      "skillPath": "skills/threejs-r3f/SKILL.md",
+      "computedHash": "4eca6f00838a79b0ae6a836d189506bfc1ccef733d71cfd34dafea340fc81a95"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "4f68ae07187fb0d1fb78c88b503d089da4cf5a9d9625d1f2e425b1590bf96d92"
+    }
+  }
+}
