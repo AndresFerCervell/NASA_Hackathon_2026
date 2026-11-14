@@ -279,6 +279,59 @@ return (
     </div>
 
     <div className="hud-overlay">
+      {activeTab === 'orbital' && isPlaying ? (
+        <aside className="hud-card sim-running-sidebar" aria-label="Datos de simulación en curso">
+          <div className="sim-running-header">
+            <span className="sim-running-time">
+              {formatUTCString(cal.year, cal.month, cal.day, cal.hour)}
+            </span>
+            <button
+              type="button"
+              className="hud-btn play-btn is-playing"
+              onClick={handleToggleSimulate}
+            >
+              Pausar
+            </button>
+          </div>
+
+          {selectedSite && solarImpact && (
+            <>
+              {(() => {
+                const isSuccess = stellarData
+                  ? stellarData.funciona
+                  : solarImpact.sunHits && solarImpact.earthVisible;
+                return (
+                  <div className={`solar-badge ${isSuccess ? 'success' : 'failed'}`}>
+                    <span>{isSuccess ? '✓' : '✕'}</span>
+                    <span>{isSuccess ? 'Éxito' : 'Fallido'}</span>
+                  </div>
+                );
+              })()}
+
+              <div className="solar-meta">
+                <strong>{stellarData?.name ?? selectedSite.name}</strong>
+                <span>
+                  {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
+                </span>
+                <span>
+                  Elevación solar: {solarImpact.elevationDeg >= 0 ? '+' : ''}
+                  {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
+                  {solarImpact.earthVisible ? 'Tierra visible' : 'Sin enlace Tierra'}
+                </span>
+                {isStellarLoading && <span>Calculando viabilidad...</span>}
+                {stellarError && <span>{stellarError}</span>}
+                {stellarData && (
+                  <span>
+                    {stellarData.tipo_despegue}
+                    {stellarData.tipo_fallo !== 'Ninguno' ? ` • ${stellarData.tipo_fallo}` : ''}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </aside>
+      ) : (
+        <>
       {/* Top Header */}
       <header className="hud-card hud-header">
         <div className="title-block">
@@ -371,15 +424,6 @@ return (
                 {showAdvancedTelemetry ? 'Ocultar telemetría' : 'Vista avanzada'}
               </button>
 
-              <button
-                type="button"
-                className={`hud-btn play-btn ${isPlaying ? 'is-playing' : ''}`}
-                aria-pressed={isPlaying}
-                onClick={handleToggleSimulate}
-              >
-                {isPlaying ? 'Pause' : 'Simulate'}
-              </button>
-
               <div className="btn-group" role="radiogroup" aria-label="Simulation speed">
                 {[
                   { label: '1h/s', speed: 1 },
@@ -428,7 +472,7 @@ return (
                 </div>
                 <div className="compare-metrics">
                   <span>
-                    {impact.sunHits ? '☀ Impacta el Sol' : '🌑 En sombra'} (
+                    {impact.sunHits && impact.earthVisible ? '✓ Éxito' : '✕ Fallido'} (Sol{' '}
                     {impact.elevationDeg >= 0 ? '+' : ''}
                     {impact.elevationDeg.toFixed(1)}&deg;)
                   </span>
@@ -588,12 +632,17 @@ return (
         <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
           {selectedSite && solarImpact && (
             <div className="hud-card solar-impact-card" role="status" aria-live="polite">
-              <div className={`solar-badge ${solarImpact.sunHits ? 'lit' : 'shadow'}`}>
-                <span>{solarImpact.sunHits ? '☀' : '🌑'}</span>
-                <span>
-                  {solarImpact.sunHits ? 'Impacta el Sol' : 'En sombra (sin luz solar)'}
-                </span>
-              </div>
+              {(() => {
+                const isSuccess = stellarData
+                  ? stellarData.funciona
+                  : solarImpact.sunHits && solarImpact.earthVisible;
+                return (
+                  <div className={`solar-badge ${isSuccess ? 'success' : 'failed'}`}>
+                    <span>{isSuccess ? '✓' : '✕'}</span>
+                    <span>{isSuccess ? 'Éxito' : 'Fallido'}</span>
+                  </div>
+                );
+              })()}
 
               <div className="solar-meta">
                 <strong>
@@ -773,12 +822,23 @@ return (
               </div>
             </div>
 
-            <div className="hint-strip">
-              <span>Drag to orbit &bull; Scroll to zoom &bull; Right-drag to pan</span>
-              <span>Keys: &larr;/&rarr; &plusmn;1 day &bull; &uarr;/&darr; &plusmn;1 hr &bull; Space Play/Pause</span>
+            <div className="controls-footer">
+              <div className="hint-strip" style={{ marginTop: 0 }}>
+                <span>Arrastra para orbitar &bull; Rueda para zoom &bull; &larr;/&rarr; &plusmn;1 día &bull; Espacio Simular</span>
+              </div>
+              <button
+                type="button"
+                className="simulate-cta"
+                aria-pressed={isPlaying}
+                onClick={handleToggleSimulate}
+              >
+                ▶ Simular lanzamiento
+              </button>
             </div>
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   </div>
