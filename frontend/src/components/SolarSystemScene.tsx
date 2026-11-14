@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Billboard, Line, OrbitControls, Stars, Text } from '@react-three/drei';
+import { Billboard, Line, OrbitControls, Stars, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import {
@@ -13,11 +13,7 @@ import {
   MOON_INCLINATION_DEG,
   PERIHELION_LON_DEG,
 } from '../astronomy/ephemeris';
-import {
-  createEarthTexture,
-  createMoonTexture,
-  createSunGlowTexture,
-} from '../astronomy/textures';
+import { createSunGlowTexture } from '../astronomy/textures';
 
 export type CameraMode = 'heliocentric' | 'zenithal' | 'geocentric';
 
@@ -53,18 +49,19 @@ export function SolarSystemScene({
   const lastEarthPosRef = useRef(new THREE.Vector3(...getEarthScenePosition(0, BASE_ORBIT_R, VIS_ECC)));
   const lastUiSyncTimeRef = useRef(0);
 
-  // Memoized procedural textures with explicit disposal on unmount
-  const earthTexture = useMemo(() => createEarthTexture(), []);
-  const moonTexture = useMemo(() => createMoonTexture(), []);
+  // Shared cached textures via Drei useTexture (do not dispose cache-owned entries)
+  const { earthMap, moonMap, sunMap } = useTexture({
+    earthMap: '/textures/earth.jpg',
+    moonMap: '/textures/moon.jpg',
+    sunMap: '/textures/sun.jpg',
+  });
   const sunGlowTexture = useMemo(() => createSunGlowTexture(), []);
 
   useEffect(() => {
     return () => {
-      earthTexture.dispose();
-      moonTexture.dispose();
       sunGlowTexture.dispose();
     };
-  }, [earthTexture, moonTexture, sunGlowTexture]);
+  }, [sunGlowTexture]);
 
   // Dynamic Sun->Earth and Earth->Moon radius vector lines (updated imperatively in useFrame)
   const sunEarthLineObj = useMemo(() => {
@@ -262,7 +259,7 @@ export function SolarSystemScene({
       <group position={[0, 0, 0]}>
         <mesh>
           <sphereGeometry args={[1.65, 48, 48]} />
-          <meshBasicMaterial color="#ffd166" />
+          <meshBasicMaterial map={sunMap} color="#ffe39a" />
         </mesh>
         <sprite scale={[7.2, 7.2, 1]}>
           <spriteMaterial
@@ -377,7 +374,7 @@ export function SolarSystemScene({
             <mesh>
               <sphereGeometry args={[0.85, 40, 40]} />
               <meshStandardMaterial
-                map={earthTexture}
+                map={earthMap}
                 roughness={0.75}
                 metalness={0.05}
               />
@@ -418,7 +415,7 @@ export function SolarSystemScene({
         {/* Moon */}
         <mesh ref={moonRef}>
           <sphereGeometry args={[0.28, 32, 32]} />
-          <meshStandardMaterial map={moonTexture} roughness={0.9} metalness={0.02} />
+          <meshStandardMaterial map={moonMap} roughness={0.9} metalness={0.02} />
         </mesh>
       </group>
     </>
