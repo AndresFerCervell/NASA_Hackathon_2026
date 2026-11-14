@@ -44,3 +44,12 @@ backend/.venv
 backend/data/*.bsp
 __pycache__
 *.pyc
+
+*.tiff
+*.TIF
+*.tif
+*.img
+*.IMG
+
+# Archivos basura generados por Windows en WSL
+*:Zone.Identifier
