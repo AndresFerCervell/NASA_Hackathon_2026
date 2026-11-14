@@ -44,3 +44,9 @@ backend/.venv
 backend/data/*.bsp
 __pycache__
 *.pyc
+
+# scripts
+.build_lola_notebook.py
+
+Pruebas_COG_LOLA
+Pruebas_COG_LOLA.ipynb
