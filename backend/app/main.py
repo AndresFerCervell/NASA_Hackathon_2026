@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from datetime import datetime, timezone
 
@@ -13,15 +14,23 @@ from app.astronomy.ephemeris import (
     compute_julian_date,
     compute_orbital_mechanics_from_jd,
     compute_trajectory_range,
+    evaluate_landing_site_viability,
     jd_to_calendar_utc,
 )
 
 app = FastAPI(title="J2000.0 Ephemeris API", version="1.0.0")
 
+_raw_cors_origins = os.getenv("CORS_ORIGINS", "*").strip()
+_cors_origins = (
+    ["*"]
+    if _raw_cors_origins == "*"
+    else [origin.strip() for origin in _raw_cors_origins.split(",") if origin.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -73,3 +82,20 @@ def get_trajectory(
         "steps": len(points),
         "points": points,
     }
+
+
+@app.get("/api/{landing_site}")
+def get_landing_site_viability(
+    landing_site: str,
+    fecha: str | None = Query(default=None),
+    lat: float | None = Query(default=None, ge=-90.0, le=90.0),
+    lon: float | None = Query(default=None, ge=-180.0, le=180.0),
+    name: str | None = Query(default=None),
+) -> dict[str, object]:
+    return evaluate_landing_site_viability(
+        landing_site=landing_site,
+        fecha_iso=fecha,
+        lat_deg=lat,
+        lon_deg=lon,
+        site_name=name,
+    )
