@@ -592,6 +592,12 @@ body,
   gap: 8px;
 }
 
+.landing-preview-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .landing-preview-title {
   font-size: 0.75rem;
   font-weight: 600;
@@ -624,4 +630,21 @@ body,
   font-size: 0.72rem;
   color: var(--text-muted);
   line-height: 1.35;
+}
+
+.sim-running-sidebar:has(.landing-preview-card.is-expanded) {
+  inset: 14px;
+  width: auto;
+  z-index: 50;
+}
+
+.landing-preview-card.is-expanded {
+  flex: 1;
+  min-height: 0;
+}
+
+.landing-preview-card.is-expanded .landing-canvas-wrap {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
 }
