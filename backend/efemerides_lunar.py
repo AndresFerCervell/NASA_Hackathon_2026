@@ -17,8 +17,7 @@ RAIZ_REPO = Path(__file__).resolve().parent
 if str(RAIZ_REPO) not in sys.path:
     sys.path.insert(0, str(RAIZ_REPO))
 
-from backend.app.astronomy.lunar_geometry import calcular_desde_lugar
-
+from app.astronomy.lunar_geometry import calcular_desde_lugar
 # ==============================================================================
 # PARÁMETROS DE CONFIGURACIÓN (modifica estos valores antes de ejecutar)
 # ==============================================================================
