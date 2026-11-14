@@ -20,10 +20,20 @@ interface RocketPlaceholderProps {
   baseMoonR: number;
 }
 
-type FailureMode = 'none' | 'comms' | 'solar' | 'critical';
+export type FailureMode = 'none' | 'comms' | 'solar' | 'critical';
 
-function getFailureMode(stellarData: StellarData | null): FailureMode {
-  if (!stellarData || stellarData.funciona) return 'none';
+export function getFailureMode(
+  stellarData: StellarData | null,
+  fallbackImpact?: { sunHits: boolean; earthVisible: boolean } | null
+): FailureMode {
+  if (!stellarData) {
+    if (!fallbackImpact) return 'none';
+    if (!fallbackImpact.sunHits && !fallbackImpact.earthVisible) return 'critical';
+    if (!fallbackImpact.earthVisible) return 'comms';
+    if (!fallbackImpact.sunHits) return 'solar';
+    return 'none';
+  }
+  if (stellarData.funciona) return 'none';
   const fallo = stellarData.tipo_fallo.toLowerCase();
   const noSun = fallo.includes('iluminación solar') || fallo.includes('luz solar');
   const noComms = fallo.includes('línea de visión') || fallo.includes('enlace directo');

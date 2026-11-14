@@ -18,6 +18,8 @@ import {
 } from './astronomy/landingSites';
 import { CanvasErrorBoundary } from './components/CanvasErrorBoundary';
 import { MoonExplorerScene } from './components/MoonExplorerScene';
+import { getFailureMode } from './components/RocketPlaceholder';
+import { RocketLandingView } from './components/RocketLandingView';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
 import { checkBackendHealth } from './api/ephemerisClient';
 import { useData } from './hooks/useStellarData';
@@ -327,6 +329,12 @@ return (
                   </span>
                 )}
               </div>
+
+              <RocketLandingView
+                failureMode={getFailureMode(stellarData, solarImpact)}
+                missionRunId={missionRunId}
+                isPlaying={isPlaying}
+              />
             </>
           )}
         </aside>
