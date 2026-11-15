@@ -24,6 +24,7 @@ import { RocketLandingView } from './components/RocketLandingView';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
 import { ZenithalPreviewCard } from './components/ZenithalPreviewCard';
 import { checkBackendHealth } from './api/ephemerisClient';
+import { soundEngine } from './audio/soundEngine';
 import { useData } from './hooks/useStellarData';
 import { buildViabilityChecks } from './model/datosEstelares';
 
@@ -69,8 +70,13 @@ export function App() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [orbitalMissionMenuOpen, setOrbitalMissionMenuOpen] = useState(false);
   const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => soundEngine.isEnabled());
+  const [musicVolume, setMusicVolume] = useState(() => soundEngine.getMusicVolume());
+  const [sfxVolume, setSfxVolume] = useState(() => soundEngine.getSfxVolume());
+  const [audioMenuOpen, setAudioMenuOpen] = useState(false);
   const orbitalMissionMenuRef = useRef<HTMLDivElement | null>(null);
   const viewOptionsRef = useRef<HTMLDivElement | null>(null);
+  const audioMenuRef = useRef<HTMLDivElement | null>(null);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -146,7 +152,7 @@ export function App() {
   }, [openMissionId]);
 
   useEffect(() => {
-    if (!showAboutModal && !orbitalMissionMenuOpen && !viewOptionsOpen) return;
+    if (!showAboutModal && !orbitalMissionMenuOpen && !viewOptionsOpen && !audioMenuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
@@ -159,12 +165,16 @@ export function App() {
       if (viewOptionsOpen && viewOptionsRef.current && !viewOptionsRef.current.contains(target)) {
         setViewOptionsOpen(false);
       }
+      if (audioMenuOpen && audioMenuRef.current && !audioMenuRef.current.contains(target)) {
+        setAudioMenuOpen(false);
+      }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowAboutModal(false);
         setOrbitalMissionMenuOpen(false);
         setViewOptionsOpen(false);
+        setAudioMenuOpen(false);
       }
     };
     window.addEventListener('mousedown', onPointerDown);
@@ -173,7 +183,20 @@ export function App() {
       window.removeEventListener('mousedown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [showAboutModal, orbitalMissionMenuOpen, viewOptionsOpen]);
+  }, [showAboutModal, orbitalMissionMenuOpen, viewOptionsOpen, audioMenuOpen]);
+
+  // Start ambient space music on first user gesture (respecting browser autoplay policy)
+  useEffect(() => {
+    const unlock = () => {
+      soundEngine.unlockAndStartAmbient();
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   const cal = useMemo(() => jdToCalendarUTC(displayJD), [displayJD]);
   const telemetry = useMemo(() => computeOrbitalMechanicsFromJD(displayJD), [displayJD]);
@@ -206,10 +229,13 @@ export function App() {
 
   const handleToggleSimulate = useCallback(async () => {
     if (isPlaying) {
+      soundEngine.playUiClick();
       setIsPlaying(false);
       return;
     }
     if (isStellarLoading) return;
+
+    soundEngine.playLaunchIgnition();
 
     if (selectedSite) {
       const res = await handlePickLandingSite(selectedSite.id, {
@@ -220,6 +246,7 @@ export function App() {
       });
       if (res) {
         setApiOnline(true);
+        soundEngine.playSimulationResult(res.funciona);
       }
     }
 
@@ -614,10 +641,82 @@ export function App() {
                   </button>
                 </div>
 
+                <div className="toolbar-dropdown-wrap" ref={audioMenuRef}>
+                  <button
+                    type="button"
+                    className={`hud-btn ${soundEnabled ? 'is-active' : ''}`}
+                    aria-expanded={audioMenuOpen}
+                    title="Audio & volume controls"
+                    onClick={() => setAudioMenuOpen((v) => !v)}
+                  >
+                    {soundEnabled ? '🔊 Audio ▾' : '🔇 Muted ▾'}
+                  </button>
+                  {audioMenuOpen && (
+                    <div className="hud-card toolbar-popover audio-popover" role="region" aria-label="Audio volume controls">
+                      <div className="audio-popover-head">
+                        <span className="sim-advanced-heading">Audio Mixer</span>
+                        <button
+                          type="button"
+                          className={`hud-btn ${soundEnabled ? 'is-active' : ''}`}
+                          onClick={() => {
+                            const next = !soundEnabled;
+                            setSoundEnabled(next);
+                            soundEngine.setEnabled(next);
+                            if (next) soundEngine.playUiClick();
+                          }}
+                        >
+                          {soundEnabled ? 'Mute All' : 'Unmute'}
+                        </button>
+                      </div>
+
+                      <label className="audio-slider-row">
+                        <div className="audio-slider-label">
+                          <span>Music</span>
+                          <strong>{Math.round(musicVolume * 100)}%</strong>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={Math.round(musicVolume * 100)}
+                          disabled={!soundEnabled}
+                          onChange={(e) => {
+                            const v = Number(e.target.value) / 100;
+                            setMusicVolume(v);
+                            soundEngine.setMusicVolume(v);
+                          }}
+                        />
+                      </label>
+
+                      <label className="audio-slider-row">
+                        <div className="audio-slider-label">
+                          <span>Sound Effects (SFX)</span>
+                          <strong>{Math.round(sfxVolume * 100)}%</strong>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={Math.round(sfxVolume * 100)}
+                          disabled={!soundEnabled}
+                          onChange={(e) => {
+                            const v = Number(e.target.value) / 100;
+                            setSfxVolume(v);
+                            soundEngine.setSfxVolume(v);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   className={`hud-btn about-btn ${showAboutModal ? 'is-active' : ''}`}
-                  onClick={() => setShowAboutModal(true)}
+                  onClick={() => {
+                    soundEngine.playUiClick();
+                    setShowAboutModal(true);
+                  }}
                 >
                   About OSSM
                 </button>
@@ -1011,6 +1110,9 @@ export function App() {
               Built by team <strong>One Safe Step For Mankind (OSSM)</strong> to evaluate lunar
               landing site viability using real JPL Horizons / DE440s ephemerides, LOLA elevation
               and slope models, solar illumination windows, and Earth line-of-sight communications.
+            </p>
+            <p className="about-modal-copy">
+              Ambient music: <em>&ldquo;Gravitation&rdquo;</em> by Stellardrone (CC BY 3.0).
             </p>
             <div className="about-modal-actions">
               <a

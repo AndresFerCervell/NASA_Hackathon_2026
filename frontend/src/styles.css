@@ -1710,3 +1710,39 @@ body,
   font-size: 0.72rem;
   color: var(--text-muted);
 }
+
+.audio-popover {
+  min-width: 250px;
+}
+
+.audio-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.audio-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.audio-slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.audio-slider-label strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-slider-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}

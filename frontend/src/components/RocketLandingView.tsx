@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { CanvasErrorBoundary } from './CanvasErrorBoundary';
+import { soundEngine } from '../audio/soundEngine';
 import type { FailureMode } from './RocketPlaceholder';
 
 interface RocketLandingViewProps {
@@ -514,12 +515,27 @@ export function RocketLandingView({
   const [replayCount, setReplayCount] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [phaseLabel, setPhaseLabel] = useState(() => getPhaseLabel(failureMode, 0));
+  const landingSfxPlayedRef = useRef(false);
   const runKey = missionRunId * 1000 + replayCount;
   const meta = MODE_LABELS[failureMode];
 
   useEffect(() => {
     setPhaseLabel(getPhaseLabel(failureMode, 0));
+    landingSfxPlayedRef.current = false;
   }, [failureMode, runKey]);
+
+  useEffect(() => {
+    if (landingSfxPlayedRef.current) return;
+    if (failureMode === 'none') {
+      if (phaseLabel.includes('touchdown') || phaseLabel.includes('Landing successful')) {
+        landingSfxPlayedRef.current = true;
+        soundEngine.playLandingEvent('touchdown');
+      }
+    } else if (phaseLabel.includes('Impact') || phaseLabel.includes('impact') || phaseLabel.includes('explosion')) {
+      landingSfxPlayedRef.current = true;
+      soundEngine.playLandingEvent('impact');
+    }
+  }, [phaseLabel, failureMode]);
 
   useEffect(() => {
     if (!isExpanded) return;
