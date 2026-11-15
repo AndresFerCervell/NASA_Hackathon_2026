@@ -91,6 +91,7 @@ export interface CheckMetric {
 
 export interface ViabilityCheckItem {
   code: number;
+  displayNumber: number;
   label: string;
   status: CheckStatus;
   measured: string;
@@ -104,7 +105,7 @@ const CHECK_LABELS: Record<number, string> = {
   2: 'Site & Ephemeris Data',
   3: 'Solar Horizon & Eclipse',
   4: 'Earth Visibility',
-  5: 'Initial Solar Elevation',
+  5: 'Solar position',
   6: 'Illumination Duration',
   7: 'Temporal Coverage',
 };
@@ -255,10 +256,11 @@ export function buildViabilityChecks(ev: SiteEvaluation): ViabilityCheckItem[] {
     },
   };
 
-  return [1, 2, 3, 4, 5, 6, 7].map((code) => {
+  return [1, 3, 4, 5, 6, 7].map((code, idx) => {
     const failInfo = detailByCode.get(code);
     return {
       code,
+      displayNumber: idx + 1,
       label: CHECK_LABELS[code],
       status: getStatus(code),
       measured: specs[code].measured,

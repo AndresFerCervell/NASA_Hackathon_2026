@@ -496,13 +496,13 @@ export function App() {
                       {checks.length > 0 && (
                         <div className="sim-checks-basic" aria-label="Viability checks summary">
                           <span className="sim-advanced-heading">
-                            Viability Checks ({passedCount}/7 Passed)
+                            Viability Checks ({passedCount}/{checks.length} Passed)
                           </span>
                           <ul className="sim-checks-list">
                             {checks.map((c) => (
                               <li key={c.code} className={`sim-check-row is-${c.status}`}>
                                 <span className="sim-check-name">
-                                  <span className="sim-check-num">#{c.code}</span> {c.label}
+                                  <span className="sim-check-num">#{c.displayNumber}</span> {c.label}
                                 </span>
                                 <span
                                   className={`sim-check-badge is-${c.status}`}
@@ -567,7 +567,7 @@ export function App() {
                                   <div key={c.code} className={`sim-check-detail-card is-${c.status}`}>
                                     <div className="sim-check-detail-head">
                                       <span>
-                                        <strong>#{c.code}</strong> {c.label}
+                                        <strong>#{c.displayNumber}</strong> {c.label}
                                       </span>
                                       <span className={`sim-check-badge is-${c.status}`}>
                                         {c.status === 'pass' ? '✓ Pass' : c.status === 'fail' ? '✕ Fail' : '— N/A'}
