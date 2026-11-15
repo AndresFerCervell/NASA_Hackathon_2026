@@ -1,0 +1,68 @@
+services:
+  # --- Backend API (FastAPI + RAG Engine) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: landingsite_backend
+    ports:
+      - "8000:8000"
+    networks:
+      - landingsite_net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # --- CONFIGURACIÓN DE DOCKER COMPOSE WATCH ---
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - .git/
+            - .venv/
+            - "*.egg-info/"
+        - action: rebuild
+          path: ./backend/requirements.txt
+        - action: rebuild
+          path: ./backend/Dockerfile
+
+  # --- Frontend UI (React + Vite served by Nginx) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: landingsite_frontend
+    ports:
+      - "5173:5173"
+    networks:
+      - landingsite_net
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Útil si estás en Windows/Mac para que Docker detecte los cambios de archivos
+      - VITE_API_URL=http://localhost:8000
+      - BACKEND_URL=backend:8000
+    command: npm run dev -- --host 0.0.0.0
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - dist/
+            - .git/
+            - .vite/
+        - action: rebuild
+          path: ./frontend/package.json
+        - action: rebuild
+          path: ./frontend/package-lock.json
+        - action: rebuild
+          path: ./frontend/Dockerfile
+
+networks:
+  landingsite_net:
+    name: landingsite_net
+    driver: bridge

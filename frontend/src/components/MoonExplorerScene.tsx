@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Billboard, Line, OrbitControls, Stars, Text } from '@react-three/drei';
+import { Billboard, Line, OrbitControls, Stars, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { createMoonTexture } from '../astronomy/textures';
 import { formatDms, geoPoint, type LandingSite } from '../astronomy/landingSites';
 
 interface MoonExplorerSceneProps {
@@ -27,14 +26,13 @@ export function MoonExplorerScene({
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const moonTexture = useMemo(() => createMoonTexture(), []);
+  const moonTexture = useTexture('/textures/moon.jpg');
 
   useEffect(() => {
     return () => {
-      moonTexture.dispose();
       document.body.style.cursor = 'auto';
     };
-  }, [moonTexture]);
+  }, []);
 
   // Handle zoom / reset buttons from HTML HUD
   useEffect(() => {
@@ -164,13 +162,18 @@ export function MoonExplorerScene({
         </Text>
       </Billboard>
 
-      {/* 3 Fixed Random Landing Sites (2 South Pole, 1 North Pole) */}
+      {/* Curated & Custom Landing Sites */}
       {sites.map((site) => {
         const pos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.035);
         const labelPos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.24);
         const isHovered = hoveredId === site.id;
         const isSelected = selectedSiteId === site.id;
-        const pinColor = site.pole === 'south' ? '#38bdf8' : '#fbbf24';
+        const pinColor =
+          site.pole === 'south'
+            ? '#38bdf8'
+            : site.pole === 'north'
+              ? '#fbbf24'
+              : '#34d399';
 
         return (
           <group key={site.id}>
