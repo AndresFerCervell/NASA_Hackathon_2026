@@ -36,13 +36,13 @@ export interface SolarImpactStatus {
 }
 
 /**
- * Curated NASA landing sites with official selenographic coordinates and mission dates.
+ * Curated lunar landing sites with official selenographic coordinates and mission dates.
  */
 export const CURATED_LANDING_SITES: LandingSite[] = [
   {
     id: 'im1-odysseus',
     name: 'IM-1 Odysseus (Malapert A)',
-    program: 'NASA CLPS',
+    program: 'CLPS',
     region: 'South Pole · Malapert A',
     pole: 'south',
     latDeg: -80.13,
@@ -53,7 +53,7 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
   {
     id: 'artemis3-shackleton',
     name: 'Artemis III (Shackleton Rim)',
-    program: 'NASA Artemis III',
+    program: 'Artemis III',
     region: 'South Pole · Peak Near Shackleton',
     pole: 'south',
     latDeg: -89.68,
@@ -64,7 +64,7 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
   {
     id: 'apollo-11',
     name: 'Apollo 11 (Tranquility Base)',
-    program: 'NASA Apollo',
+    program: 'Apollo',
     region: 'Mare Tranquillitatis',
     pole: 'equatorial',
     latDeg: 0.67,

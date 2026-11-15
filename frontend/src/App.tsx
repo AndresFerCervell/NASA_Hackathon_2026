@@ -339,8 +339,8 @@ export function App() {
               <div className="title-block">
                 <h1>
                   {activeTab === 'moon'
-                    ? 'Moon — NASA 3D Landing Site Explorer'
-                    : 'Orbit Simulator — NASA 3D Landing Site Explorer'}
+                    ? 'Lunar Landing Site Navigator — Moon Explorer'
+                    : 'Lunar Landing Site Navigator — Orbit Simulator'}
                 </h1>
                 <p>
                   {formatUTCString(cal.year, cal.month, cal.day, cal.hour)} &bull; Sun-Earth-Moon
@@ -497,7 +497,7 @@ export function App() {
             {activeTab === 'moon' ? (
               <>
                 <div className="moon-hero">
-                  <div className="moon-hero-eyebrow">01 — NASA Landing Sites</div>
+                  <div className="moon-hero-eyebrow">01 — One Safe Step For Mankind (OSSM)</div>
                   <h2>Moon.</h2>
                   <p>
                     Rotate the lunar globe and click any of the preloaded missions to open the zenithal
