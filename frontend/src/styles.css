@@ -1464,3 +1464,48 @@ body,
     animation: none;
   }
 }
+
+/* Zenithal Orbit Preview (top-right in Orbital Simulator) */
+.zenithal-preview-card {
+  position: fixed;
+  top: 68px;
+  right: 16px;
+  width: 224px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+  z-index: 18;
+}
+
+.zenithal-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.zenithal-preview-head .sim-advanced-heading {
+  margin-bottom: 0;
+}
+
+.zenithal-focus-btn {
+  padding: 3px 8px;
+  font-size: 0.68rem;
+}
+
+.zenithal-canvas-wrap {
+  width: 100%;
+  height: 164px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #020617;
+}
+
+@media (max-width: 768px) {
+  .zenithal-preview-card {
+    display: none;
+  }
+}

@@ -22,6 +22,7 @@ import { MoonExplorerScene } from './components/MoonExplorerScene';
 import { getFailureMode } from './components/RocketPlaceholder';
 import { RocketLandingView } from './components/RocketLandingView';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
+import { ZenithalPreviewCard } from './components/ZenithalPreviewCard';
 import { checkBackendHealth } from './api/ephemerisClient';
 import { useData } from './hooks/useStellarData';
 import { buildViabilityChecks } from './model/datosEstelares';
@@ -60,7 +61,7 @@ export function App() {
   const [displayJD, setDisplayJD] = useState<number>(INITIAL_JD);
   const [activeTab, setActiveTab] = useState<ActiveTab>('moon');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('geocentric');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
   const [showSimAdvancedData, setShowSimAdvancedData] = useState(false);
@@ -170,7 +171,7 @@ export function App() {
       jdRef.current = targetJD;
       setDisplayJD(targetJD);
     }
-    setCameraMode('zenithal');
+    setCameraMode('geocentric');
     setActiveTab('orbital');
   }, []);
 
@@ -255,6 +256,16 @@ export function App() {
       </div>
 
       <div className="hud-overlay">
+        {activeTab === 'orbital' && (
+          <ZenithalPreviewCard
+            jdRef={jdRef}
+            cameraMode={cameraMode}
+            onFocusZenithal={() =>
+              setCameraMode((prev) => (prev === 'zenithal' ? 'geocentric' : 'zenithal'))
+            }
+          />
+        )}
+
         {activeTab === 'orbital' && isPlaying ? (
           <aside className="hud-card sim-running-sidebar" aria-label="Running simulation telemetry">
             <div className="sim-running-header">
