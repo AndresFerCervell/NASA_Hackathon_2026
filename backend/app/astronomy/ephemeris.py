@@ -347,10 +347,10 @@ def evaluate_landing_site_viability(
     sun_hits = cos_sun > 0.0
     earth_visible = local_normal[2] > 0.0
 
-    # Manual toggle to test steep-slope landing failure
+    # Manual toggle to test steep-slope landing failure (applies only to IM-1 Odysseus for now)
     slope_too_steep = True
 
-    if slope_too_steep:
+    if slope_too_steep and landing_site == "im1-odysseus":
         funciona = False
         tipo_despegue = "Not viable (unsafe terrain)"
         tipo_fallo = "Terrain slope too steep"

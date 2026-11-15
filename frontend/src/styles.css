@@ -264,10 +264,26 @@ body,
 }
 
 /* Moon Explorer (Initial Tab) */
+@keyframes moonFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .moon-hero {
   pointer-events: none;
   max-width: 300px;
   margin-top: 8px;
+}
+
+.moon-hero .moon-hero-eyebrow {
+  opacity: 0;
+  animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
 }
 
 .moon-hero-eyebrow {
@@ -283,6 +299,8 @@ body,
   line-height: 0.95;
   letter-spacing: -0.05em;
   font-weight: 600;
+  opacity: 0;
+  animation: moonFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards;
 }
 
 .moon-hero p {
@@ -290,6 +308,8 @@ body,
   font-size: 0.84rem;
   line-height: 1.55;
   color: var(--text-muted);
+  opacity: 0;
+  animation: moonFadeUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.38s forwards;
 }
 
 .moon-bottom-row {
@@ -298,6 +318,33 @@ body,
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
+}
+
+.moon-bottom-row > .moon-coords-card {
+  opacity: 0;
+  animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.32s forwards;
+}
+
+.moon-bottom-row > .sites-bar-wrap {
+  opacity: 0;
+  animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.44s forwards;
+}
+
+.moon-bottom-row > .btn-group {
+  opacity: 0;
+  animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.56s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moon-hero .moon-hero-eyebrow,
+  .moon-hero h2,
+  .moon-hero p,
+  .moon-bottom-row > .moon-coords-card,
+  .moon-bottom-row > .sites-bar-wrap,
+  .moon-bottom-row > .btn-group {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 .moon-coords-card {

@@ -77,20 +77,37 @@ export function MoonExplorerScene({
   const northPolePos = useMemo(() => geoPoint(89.9, 0, MOON_RADIUS + 0.02), []);
   const southPolePos = useMemo(() => geoPoint(-89.9, 0, MOON_RADIUS + 0.02), []);
 
-  // Subtle ambient star drift
+  // Subtle ambient star drift + gentle Moon auto-rotation & entrance scale
   const starsRef = useRef<THREE.Group | null>(null);
+  const moonGroupRef = useRef<THREE.Group | null>(null);
+  const isInteractingRef = useRef(false);
+  const introProgressRef = useRef(0);
+
   useFrame((_, delta) => {
+    const dt = Math.min(0.05, delta);
     if (starsRef.current) {
-      starsRef.current.rotation.y += Math.min(0.05, delta) * 0.01;
+      starsRef.current.rotation.y += dt * 0.01;
+    }
+    if (moonGroupRef.current) {
+      if (introProgressRef.current < 1) {
+        introProgressRef.current = Math.min(1, introProgressRef.current + dt / 0.9);
+        const eased = 1 - Math.pow(1 - introProgressRef.current, 3);
+        moonGroupRef.current.scale.setScalar(0.88 + 0.12 * eased);
+      }
+      if (!isInteractingRef.current) {
+        moonGroupRef.current.rotation.y += dt * 0.045;
+      }
     }
   });
 
   const handleSpherePointerMove = (e: ThreeEvent<PointerEvent>) => {
-    const p = e.point;
+    const localPoint = moonGroupRef.current
+      ? moonGroupRef.current.worldToLocal(e.point.clone())
+      : e.point;
     const lat = THREE.MathUtils.radToDeg(
-      Math.asin(THREE.MathUtils.clamp(p.y / MOON_RADIUS, -1, 1))
+      Math.asin(THREE.MathUtils.clamp(localPoint.y / MOON_RADIUS, -1, 1))
     );
-    const lon = THREE.MathUtils.radToDeg(Math.atan2(p.x, p.z));
+    const lon = THREE.MathUtils.radToDeg(Math.atan2(localPoint.x, localPoint.z));
     onHoverCoords(`${formatDms(lat, true)}  ·  ${formatDms(lon, false)}`);
   };
 
@@ -118,8 +135,15 @@ export function MoonExplorerScene({
         minDistance={2.2}
         maxDistance={12}
         rotateSpeed={0.7}
+        onStart={() => {
+          isInteractingRef.current = true;
+        }}
+        onEnd={() => {
+          isInteractingRef.current = false;
+        }}
       />
 
+      <group ref={moonGroupRef} scale={0.88}>
       {/* Lunar Sphere */}
       <mesh
         onPointerMove={handleSpherePointerMove}
@@ -231,6 +255,7 @@ export function MoonExplorerScene({
           </group>
         );
       })}
+      </group>
     </>
   );
 }
