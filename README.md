@@ -1,4 +1,4 @@
-# 🌕 [One Safe Step for Mankind](https://ossm-lunar-navigator-web.onrender.com/)
+# [One Safe Step for Mankind](https://ossm-lunar-navigator-web.onrender.com/)
 
 **NASA Space Apps Challenge 2026 — Lunar Landing Site Navigator**
 
