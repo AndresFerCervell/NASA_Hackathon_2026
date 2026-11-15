@@ -48,6 +48,27 @@ body,
 .canvas-layer {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+
+.canvas-slot {
+  position: absolute;
+  inset: 0;
+}
+
+.canvas-slot.is-moon {
+  z-index: 2;
+}
+
+.canvas-slot.is-orbital.is-preloading {
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvas-slot.is-orbital.is-visible {
+  z-index: 2;
+  opacity: 1;
 }
 
 .canvas-fallback {
@@ -62,12 +83,22 @@ body,
 .hud-overlay {
   position: absolute;
   inset: 0;
+  z-index: 10;
   pointer-events: none;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 14px;
   gap: 12px;
+  transition: opacity 0.28s ease;
+}
+
+.hud-overlay.is-launching {
+  opacity: 0;
+}
+
+.hud-overlay.is-launching .hud-card {
+  pointer-events: none;
 }
 
 .hud-card {
@@ -1745,4 +1776,129 @@ body,
   width: 100%;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+/* Smooth Fade-Out -> Geocentric Transition Curtain */
+.view-transition-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: radial-gradient(circle at 50% 45%, #0b132b 0%, #050814 75%);
+  pointer-events: none;
+}
+
+.view-transition-curtain.is-fade-out {
+  animation: curtainFadeOut 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.view-transition-curtain.is-fade-in {
+  animation: curtainFadeIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes curtainFadeOut {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes curtainFadeIn {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Staggered Fade-In Animations for Orbital Simulator HUD */
+@keyframes orbitalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.orbital-mission-card {
+  opacity: 0;
+  animation: orbitalFadeIn 0.55s ease-out 0.1s forwards;
+}
+
+.zenithal-preview-card {
+  opacity: 0;
+  animation: orbitalFadeIn 0.55s ease-out 0.18s forwards;
+}
+
+.orbital-date-sim-card {
+  opacity: 0;
+  animation: orbitalFadeIn 0.6s ease-out 0.26s forwards;
+}
+
+.orbital-canvas-fade {
+  animation: orbitalFadeIn 0.45s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbital-mission-card,
+  .zenithal-preview-card,
+  .orbital-date-sim-card {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Moon Target-Lock Red Pulse & Background Preload Banner */
+@keyframes lockDotPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75);
+  }
+  50% {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.moon-lock-banner {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-color: rgba(239, 68, 68, 0.65);
+  background: rgba(24, 10, 16, 0.86);
+  color: #fecaca;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 28px rgba(239, 68, 68, 0.22);
+  animation: orbitalFadeIn 0.2s ease-out forwards;
+}
+
+.moon-lock-banner strong {
+  color: #ffffff;
+}
+
+.moon-lock-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: lockDotPulse 0.9s ease-in-out infinite;
+}
+
+.site-pill.is-launching {
+  border-color: rgba(239, 68, 68, 0.85);
+  background: rgba(127, 29, 29, 0.45);
+  color: #fecaca;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+}
+
+.site-pill.is-launching .site-dot {
+  background: #ef4444 !important;
+  box-shadow: 0 0 8px #ef4444;
 }

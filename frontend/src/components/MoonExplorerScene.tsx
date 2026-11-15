@@ -8,6 +8,7 @@ import { formatDms, geoPoint, type LandingSite } from '../astronomy/landingSites
 interface MoonExplorerSceneProps {
   sites: LandingSite[];
   selectedSiteId: string | null;
+  launchingSiteId?: string | null;
   onSelectSite: (site: LandingSite) => void;
   onHoverCoords: (text: string) => void;
   zoomTrigger: { seq: number; factor: number; reset?: boolean } | null;
@@ -15,9 +16,56 @@ interface MoonExplorerSceneProps {
 
 const MOON_RADIUS = 1.72;
 
+function TargetLockPulse({ position }: { position: THREE.Vector3 }) {
+  const ring1Ref = useRef<THREE.Mesh | null>(null);
+  const ring2Ref = useRef<THREE.Mesh | null>(null);
+  const coreRef = useRef<THREE.Mesh | null>(null);
+  const clockRef = useRef(0);
+
+  useFrame((_, delta) => {
+    clockRef.current += Math.min(0.05, delta);
+    const t = clockRef.current;
+
+    const p1 = (t * 1.15) % 1;
+    const p2 = (t * 1.15 + 0.5) % 1;
+
+    if (ring1Ref.current) {
+      ring1Ref.current.scale.setScalar(1 + p1 * 3.0);
+      const mat1 = ring1Ref.current.material as THREE.MeshBasicMaterial;
+      mat1.opacity = (1 - p1) * 0.95;
+    }
+    if (ring2Ref.current) {
+      ring2Ref.current.scale.setScalar(1 + p2 * 3.0);
+      const mat2 = ring2Ref.current.material as THREE.MeshBasicMaterial;
+      mat2.opacity = (1 - p2) * 0.95;
+    }
+    if (coreRef.current) {
+      coreRef.current.scale.setScalar(1.15 + Math.sin(t * 10) * 0.2);
+    }
+  });
+
+  return (
+    <Billboard position={position}>
+      <mesh ref={coreRef}>
+        <ringGeometry args={[0.11, 0.155, 32]} />
+        <meshBasicMaterial color="#ff3b3b" transparent opacity={0.95} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ring1Ref}>
+        <ringGeometry args={[0.11, 0.14, 32]} />
+        <meshBasicMaterial color="#ef4444" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ring2Ref}>
+        <ringGeometry args={[0.11, 0.14, 32]} />
+        <meshBasicMaterial color="#f87171" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+    </Billboard>
+  );
+}
+
 export function MoonExplorerScene({
   sites,
   selectedSiteId,
+  launchingSiteId = null,
   onSelectSite,
   onHoverCoords,
   zoomTrigger,
@@ -97,7 +145,7 @@ export function MoonExplorerScene({
         const eased = 1 - Math.pow(1 - introProgressRef.current, 3);
         moonGroupRef.current.scale.setScalar(0.88 + 0.12 * eased);
       }
-      if (!isInteractingRef.current) {
+      if (!isInteractingRef.current && !launchingSiteId) {
         moonGroupRef.current.rotation.y += dt * 0.045;
       }
     }
@@ -203,11 +251,13 @@ export function MoonExplorerScene({
           const pos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.035);
           const isHovered = hoveredId === site.id;
           const isSelected = selectedSiteId === site.id;
+          const isLaunching = launchingSiteId === site.id;
           const isPolarCluster = site.pole === 'south';
-          const showSiteLabel = !isPolarCluster || isHovered || isSelected;
+          const showSiteLabel = !isPolarCluster || isHovered || isSelected || isLaunching;
           const labelPos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.28);
-          const pinColor =
-            site.pole === 'south'
+          const pinColor = isLaunching
+            ? '#ef4444'
+            : site.pole === 'south'
               ? '#38bdf8'
               : site.pole === 'north'
                 ? '#fbbf24'
@@ -217,14 +267,16 @@ export function MoonExplorerScene({
             <group key={site.id}>
               <mesh
                 position={pos}
-                scale={isHovered || isSelected ? 1.45 : 1}
+                scale={isLaunching ? 1.65 : isHovered || isSelected ? 1.45 : 1}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (launchingSiteId) return;
                   document.body.style.cursor = 'auto';
                   onSelectSite(site);
                 }}
                 onPointerOver={(e) => {
                   e.stopPropagation();
+                  if (launchingSiteId) return;
                   setHoveredId(site.id);
                   document.body.style.cursor = 'pointer';
                 }}
@@ -234,27 +286,32 @@ export function MoonExplorerScene({
                 }}
               >
                 <sphereGeometry args={[0.075, 20, 20]} />
-                <meshBasicMaterial color={isHovered ? '#ffffff' : pinColor} />
+                <meshBasicMaterial color={isLaunching ? '#ff3b3b' : isHovered ? '#ffffff' : pinColor} />
               </mesh>
 
-              {/* Outer halo ring */}
-              <Billboard position={pos}>
-                <mesh
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    document.body.style.cursor = 'auto';
-                    onSelectSite(site);
-                  }}
-                >
-                  <ringGeometry args={[0.1, 0.135, 28]} />
-                  <meshBasicMaterial
-                    color={pinColor}
-                    transparent
-                    opacity={isHovered || isSelected ? 0.95 : 0.6}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
-              </Billboard>
+              {isLaunching ? (
+                <TargetLockPulse position={pos} />
+              ) : (
+                /* Outer halo ring */
+                <Billboard position={pos}>
+                  <mesh
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (launchingSiteId) return;
+                      document.body.style.cursor = 'auto';
+                      onSelectSite(site);
+                    }}
+                  >
+                    <ringGeometry args={[0.1, 0.135, 28]} />
+                    <meshBasicMaterial
+                      color={pinColor}
+                      transparent
+                      opacity={isHovered || isSelected ? 0.95 : 0.6}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                </Billboard>
+              )}
 
               {showSiteLabel && (
                 <Billboard
@@ -267,7 +324,7 @@ export function MoonExplorerScene({
                   <Text
                     fontSize={0.11}
                     anchorY="bottom"
-                    color={isHovered ? '#ffffff' : '#f1f5f9'}
+                    color={isLaunching ? '#fecaca' : isHovered ? '#ffffff' : '#f1f5f9'}
                     outlineWidth={0.012}
                     outlineColor="#080b12"
                   >

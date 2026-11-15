@@ -80,7 +80,7 @@ def procesar_peticion_frontend(
     tiempo: str | datetime, latitud: float, longitud: float, *,
     duracion_horas: float = DURACION_HORAS, paso_horas: float = PASO_HORAS,
     carpeta_salida: Path | str | None = CARPETA_SALIDA,
-    nombre: str = "Sitio lunar", evaluador: LandingSiteEvaluator | None = None,
+    nombre: str = "Lunar site", evaluador: LandingSiteEvaluator | None = None,
 ) -> dict:
     """Devuelve todos los resultados; carpeta_salida=None evita la persistencia.
 

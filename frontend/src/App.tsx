@@ -74,6 +74,11 @@ export function App() {
   const [musicVolume, setMusicVolume] = useState(() => soundEngine.getMusicVolume());
   const [sfxVolume, setSfxVolume] = useState(() => soundEngine.getSfxVolume());
   const [audioMenuOpen, setAudioMenuOpen] = useState(false);
+  const [transitionStage, setTransitionStage] = useState<'idle' | 'fade-out' | 'fade-in'>('idle');
+  const [launchingSite, setLaunchingSite] = useState<LandingSite | null>(null);
+  const [orbitalReady, setOrbitalReady] = useState(false);
+  const [minAnimElapsed, setMinAnimElapsed] = useState(false);
+  const transitionTimersRef = useRef<number[]>([]);
   const orbitalMissionMenuRef = useRef<HTMLDivElement | null>(null);
   const viewOptionsRef = useRef<HTMLDivElement | null>(null);
   const audioMenuRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +203,13 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      transitionTimersRef.current.forEach((id) => window.clearTimeout(id));
+      transitionTimersRef.current = [];
+    };
+  }, []);
+
   const cal = useMemo(() => jdToCalendarUTC(displayJD), [displayJD]);
   const telemetry = useMemo(() => computeOrbitalMechanicsFromJD(displayJD), [displayJD]);
 
@@ -257,18 +269,68 @@ export function App() {
     setIsPlaying(true);
   }, [isPlaying, isStellarLoading, selectedSite, handlePickLandingSite, jdToUtcDate]);
 
-  const handleSelectSite = useCallback((site: LandingSite) => {
+  const prepareSiteForOrbital = useCallback((site: LandingSite) => {
     setSelectedSite(site);
-    let targetJD = jdRef.current;
     if (site.missionDate) {
       const { year, month, day, hour } = site.missionDate;
-      targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
+      const targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
       jdRef.current = targetJD;
       setDisplayJD(targetJD);
     }
     setCameraMode('geocentric');
-    setActiveTab('orbital');
+    setOpenMissionId(null);
   }, []);
+
+  const handleOrbitalReady = useCallback(() => {
+    setOrbitalReady(true);
+  }, []);
+
+  const handleSelectSite = useCallback(
+    (site: LandingSite) => {
+      if (activeTab === 'moon' && (launchingSite || transitionStage !== 'idle')) {
+        return;
+      }
+      soundEngine.playUiClick();
+      prepareSiteForOrbital(site);
+
+      if (activeTab !== 'moon') {
+        setActiveTab('orbital');
+        return;
+      }
+
+      transitionTimersRef.current.forEach((id) => window.clearTimeout(id));
+      transitionTimersRef.current = [];
+
+      setOrbitalReady(false);
+      setMinAnimElapsed(false);
+      setLaunchingSite(site);
+
+      const minTimer = window.setTimeout(() => {
+        setMinAnimElapsed(true);
+      }, 850);
+      transitionTimersRef.current.push(minTimer);
+    },
+    [activeTab, launchingSite, transitionStage, prepareSiteForOrbital]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'moon' || !launchingSite || !orbitalReady || !minAnimElapsed) return;
+
+    setTransitionStage('fade-out');
+    const switchTimer = window.setTimeout(() => {
+      setActiveTab('orbital');
+      setLaunchingSite(null);
+      setOrbitalReady(false);
+      setMinAnimElapsed(false);
+      setTransitionStage('fade-in');
+
+      const endTimer = window.setTimeout(() => {
+        setTransitionStage('idle');
+      }, 380);
+      transitionTimersRef.current.push(endTimer);
+    }, 320);
+    transitionTimersRef.current.push(switchTimer);
+  }, [activeTab, launchingSite, orbitalReady, minAnimElapsed]);
 
   // Keyboard navigation in orbital view
   useEffect(() => {
@@ -310,47 +372,58 @@ export function App() {
     <div className="app-shell">
       <div className="canvas-layer">
         <CanvasErrorBoundary>
-          {activeTab === 'moon' ? (
-            <Canvas
-              key="moon-canvas"
-              camera={{ position: [0, 0, 7.6], fov: 36, near: 0.05, far: 120 }}
-              dpr={[1, 2]}
+          {activeTab === 'moon' && (
+            <div className="canvas-slot is-moon">
+              <Canvas
+                key="moon-canvas"
+                camera={{ position: [0, 0, 7.6], fov: 36, near: 0.05, far: 120 }}
+                dpr={[1, 2]}
+              >
+                <Suspense fallback={null}>
+                  <MoonExplorerScene
+                    sites={sites}
+                    selectedSiteId={selectedSite?.id ?? null}
+                    launchingSiteId={launchingSite?.id ?? null}
+                    onSelectSite={handleSelectSite}
+                    onHoverCoords={setHoverCoords}
+                    zoomTrigger={moonZoomTrigger}
+                  />
+                </Suspense>
+              </Canvas>
+            </div>
+          )}
+          {(activeTab === 'orbital' || launchingSite !== null) && (
+            <div
+              className={`canvas-slot is-orbital ${
+                activeTab === 'orbital' ? 'is-visible orbital-canvas-fade' : 'is-preloading'
+              }`}
             >
-              <Suspense fallback={null}>
-                <MoonExplorerScene
-                  sites={sites}
-                  selectedSiteId={selectedSite?.id ?? null}
-                  onSelectSite={handleSelectSite}
-                  onHoverCoords={setHoverCoords}
-                  zoomTrigger={moonZoomTrigger}
-                />
-              </Suspense>
-            </Canvas>
-          ) : (
-            <Canvas
-              key="orbital-canvas"
-              camera={{ position: [0, 38, 0.01], fov: 45, near: 0.1, far: 400 }}
-              dpr={[1, 2]}
-            >
-              <Suspense fallback={null}>
-                <SolarSystemScene
-                  jdRef={jdRef}
-                  isPlaying={isPlaying}
-                  speedHoursPerSec={24}
-                  cameraMode={cameraMode}
-                  showLabels={showLabels}
-                  onTelemetrySample={handleTelemetrySample}
-                  stellarData={stellarData}
-                  selectedSite={selectedSite}
-                  missionRunId={missionRunId}
-                />
-              </Suspense>
-            </Canvas>
+              <Canvas
+                key="orbital-canvas"
+                camera={{ position: [0, 38, 0.01], fov: 45, near: 0.1, far: 400 }}
+                dpr={[1, 2]}
+              >
+                <Suspense fallback={null}>
+                  <SolarSystemScene
+                    jdRef={jdRef}
+                    isPlaying={isPlaying}
+                    speedHoursPerSec={24}
+                    cameraMode={cameraMode}
+                    showLabels={showLabels}
+                    onTelemetrySample={handleTelemetrySample}
+                    stellarData={stellarData}
+                    selectedSite={selectedSite}
+                    missionRunId={missionRunId}
+                    onReady={handleOrbitalReady}
+                  />
+                </Suspense>
+              </Canvas>
+            </div>
           )}
         </CanvasErrorBoundary>
       </div>
 
-      <div className="hud-overlay">
+      <div className={`hud-overlay ${launchingSite ? 'is-launching' : ''}`}>
         {activeTab === 'orbital' && (
           <ZenithalPreviewCard
             jdRef={jdRef}
@@ -736,6 +809,16 @@ export function App() {
                   </p>
                 </div>
 
+                {launchingSite && (
+                  <div className="hud-card moon-lock-banner" role="status" aria-live="polite">
+                    <span className="moon-lock-dot" aria-hidden="true" />
+                    <span>
+                      Target locked: <strong>{launchingSite.name}</strong> · Loading Orbital
+                      Simulator...
+                    </span>
+                  </div>
+                )}
+
                 <div className="moon-bottom-row">
                   <div className="hud-card moon-coords-card">
                     <span className="moon-hero-eyebrow">Cursor Coordinates</span>
@@ -821,11 +904,12 @@ export function App() {
                     <div className="hud-card sites-bar" role="group" aria-label="Lunar missions and sites">
                       {sites.map((site) => {
                         const isOpen = openMissionId === site.id;
+                        const isLaunching = launchingSite?.id === site.id;
                         return (
                           <button
                             key={site.id}
                             type="button"
-                            className={`site-pill ${isOpen ? 'is-open' : ''}`}
+                            className={`site-pill ${isOpen ? 'is-open' : ''} ${isLaunching ? 'is-launching' : ''}`}
                             aria-expanded={isOpen}
                             onClick={() => setOpenMissionId((prev) => (prev === site.id ? null : site.id))}
                             title={site.dateLabel ? `Date: ${site.dateLabel}` : site.region}
@@ -1133,6 +1217,13 @@ export function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {transitionStage !== 'idle' && (
+        <div
+          className={`view-transition-curtain is-${transitionStage}`}
+          aria-hidden="true"
+        />
       )}
     </div>
   );

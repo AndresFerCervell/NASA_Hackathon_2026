@@ -13,13 +13,13 @@ import math
 
 # 2 y 7 describen datos, no un rechazo físico. Se conservan los códigos previos.
 DICCIONARIO_FALLOS = {
-    1: "Pendiente del terreno igual o superior al máximo permitido para aterrizar.",
-    2: "Datos obligatorios ausentes, inválidos o incompatibles con el sitio.",
-    3: "Obstrucción inicial por relieve o eclipse del Sol situado sobre el horizonte horizontal.",
-    4: "Visibilidad directa de la Tierra insuficiente en el aterrizaje.",
-    5: "Elevación solar inicial igual o inferior al mínimo configurado.",
-    6: "Horas de luz estimadas iguales o inferiores al requisito configurado.",
-    7: "Cobertura temporal insuficiente para evaluar el requisito de iluminación.",
+    1: "Terrain slope is equal to or exceeds the maximum allowed for landing.",
+    2: "Mandatory data is missing, invalid, or incompatible with the site.",
+    3: "Initial terrain obstruction or eclipse of the Sun above the horizontal horizon.",
+    4: "Insufficient direct Earth line-of-sight visibility at landing.",
+    5: "Initial solar elevation is equal to or below the configured minimum.",
+    6: "Estimated lit hours are equal to or below the configured requirement.",
+    7: "Insufficient temporal coverage to evaluate the illumination requirement.",
 }
 CRITERIOS = (1, 3, 4, 5, 6)
 MODELO_ECLIPSE = "segmento_sol_puntual_tierra_esferica"
@@ -117,7 +117,7 @@ class LandingSiteEvaluator:
             evaluados.add(1)
             metricas["pendiente_evaluada_deg"] = pendiente
             if pendiente >= self.max_pendiente_deg:
-                fallo(1, f"{campo_pendiente} = {pendiente:g}°; se exige < {self.max_pendiente_deg:g}°.")
+                fallo(1, f"{campo_pendiente} = {pendiente:g}°; required < {self.max_pendiente_deg:g}°.")
 
         horizonte = datos_sitio.get("horizonte_360")
         if not isinstance(horizonte, list) or len(horizonte) != 360:
@@ -237,18 +237,18 @@ class LandingSiteEvaluator:
                     or (sol is not None and inicial["eclipse"] is not None)):
                 evaluados.add(3)
                 if fallo_luz_inicial:
-                    causas = [causa for causa, ocurre in (("relieve", relieve), ("eclipse", eclipse)) if ocurre]
-                    fallo(3, "Obstrucción inicial del Sol sobre el horizonte horizontal por " + " y ".join(causas) + ".",
+                    causas = [causa for causa, ocurre in (("terrain relief", relieve), ("eclipse", eclipse)) if ocurre]
+                    fallo(3, "Initial obstruction of the Sun above the horizontal horizon due to " + " and ".join(causas) + ".",
                           {"delta_elevacion_sol_deg": sol, "sol_elevacion_deg": elevacion_sol,
                            "eclipse": inicial["eclipse"], "causas": causas})
             if tierra is not None:
                 evaluados.add(4)
                 if tierra <= self.min_delta_tierra_t0_deg:
-                    fallo(4, f"Margen terrestre {tierra:g}°; se exige > {self.min_delta_tierra_t0_deg:g}°.")
+                    fallo(4, f"Earth horizon margin {tierra:g}°; required > {self.min_delta_tierra_t0_deg:g}°.")
             if inicial["sol_el"] is not None:
                 evaluados.add(5)
                 if inicial["sol_el"] <= self.min_angulo_solar_deg:
-                    fallo(5, f"Elevación solar {inicial['sol_el']:g}°; se exige > {self.min_angulo_solar_deg:g}°.")
+                    fallo(5, f"Solar elevation {inicial['sol_el']:g}°; required > {self.min_angulo_solar_deg:g}°.")
 
         cobertura = {"horas_solicitadas": duracion, "horas_observadas": tiempos[-1] if tiempos_validos else None,
                      "completa": False, "suficiente_para_requisito_luz": False}
@@ -256,7 +256,7 @@ class LandingSiteEvaluator:
             cobertura["completa"] = math.isclose(tiempos[-1], duracion, abs_tol=1e-9, rel_tol=0)
             cobertura["suficiente_para_requisito_luz"] = cobertura["completa"] and duracion > 0
             if not cobertura["suficiente_para_requisito_luz"]:
-                fallo(7, "La serie no cubre toda la duración solicitada o esta no contiene un intervalo de tiempo positivo.",
+                fallo(7, "The time series does not cover the full requested duration or lacks a positive time span.",
                       {"horas_observadas": tiempos[-1], "horas_solicitadas": duracion,
                        "requisito_exclusivo_horas": requisito_luz_horas})
 
@@ -287,7 +287,7 @@ class LandingSiteEvaluator:
                 if cobertura["suficiente_para_requisito_luz"]:
                     evaluados.add(6)
                     if metricas["horas_totales_luz"] <= requisito_luz_horas:
-                        fallo(6, f"Luz estimada {metricas['horas_totales_luz']:g} h; se exige > {requisito_luz_horas:g} h.",
+                        fallo(6, f"Estimated lit time {metricas['horas_totales_luz']:g} h; required > {requisito_luz_horas:g} h.",
                               {"horas_solicitadas": duracion, "requisito_exclusivo_horas": requisito_luz_horas,
                                "porcentaje_luz": metricas["porcentaje_luz"]})
             if all(f["tierra_margen"] is not None for f in filas):
@@ -295,7 +295,7 @@ class LandingSiteEvaluator:
                 metricas.update(horas_totales_comunicacion=integrar(radio), primera_perdida_comunicacion=primera_perdida(radio))
 
         if errores:
-            fallo(2, "No se pueden evaluar todos los criterios con los datos recibidos.", {"errores": errores})
+            fallo(2, "Unable to evaluate all criteria with the provided data.", {"errores": errores})
         fallos.sort(key=lambda f: f["codigo"])
         codigos = [f["codigo"] for f in fallos]
         rechazos = any(c in CRITERIOS for c in codigos)
@@ -309,18 +309,18 @@ class LandingSiteEvaluator:
             "fallos": codigos, "detalle_fallos": fallos, "diccionario_fallos": DICCIONARIO_FALLOS.copy(),
             "criterios_no_evaluados": sorted(set(CRITERIOS) - evaluados),
             "mensaje_tecnico": {
-                "viable": "El sitio supera los criterios configurados de viabilidad estimada.",
-                "no_viable": "El sitio incumple uno o varios criterios configurados.",
-                "datos_insuficientes": "No hay datos suficientes para decidir la viabilidad.",
+                "viable": "The site meets all configured estimated viability criteria.",
+                "no_viable": "The site fails one or more configured criteria.",
+                "datos_insuficientes": "Insufficient data to determine site viability.",
             }[estado],
             "parametros_mision": vars(self).copy(), "cobertura_temporal": cobertura,
             "datos_tecnicos": metricas,
-            "modelo": {"alcance": "estimacion geometrica; sin simulacion de descenso ni balance termico/energetico",
+            "modelo": {"alcance": "geometric estimation; no descent simulation or thermal/power balance",
                        "eclipse": MODELO_ECLIPSE,
-                       "integracion": "estado de la muestra izquierda en [t_i, t_i+1); ultimo extremo sin duracion",
-                       "eventos": "primera muestra de perdida y su intervalo; null si no se observa",
-                       "horizonte": "acimut al grado mas proximo; no resuelve obstaculos subpixel",
-                       "comunicacion": "visibilidad del centro terrestre; no garantiza enlace con una estacion"},
+                       "integracion": "left-sample state on [t_i, t_i+1); final endpoint has zero duration",
+                       "eventos": "first loss sample and its interval; null if not observed",
+                       "horizonte": "azimuth rounded to nearest degree; does not resolve subpixel obstacles",
+                       "comunicacion": "Earth center line-of-sight; does not guarantee ground-station link"},
             "metadatos_terreno": datos_sitio.get("metadatos", {}),
             "procedencia_efemerides": {k: ephemeris.get(k) for k in ("fuente", "lugar", "unidades", "modelo", "decimales_angulos")},
         })

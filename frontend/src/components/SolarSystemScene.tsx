@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Line, OrbitControls, Stars, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
@@ -30,6 +30,7 @@ interface SolarSystemSceneProps {
   stellarData: StellarData | null;
   selectedSite: LandingSite | null;
   missionRunId: number;
+  onReady?: () => void;
 }
 
 const BASE_ORBIT_R = 16;
@@ -46,9 +47,11 @@ export function SolarSystemScene({
   stellarData,
   selectedSite,
   missionRunId,
+  onReady,
 }: SolarSystemSceneProps) {
   const { camera } = useThree();
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const readyCalledRef = useRef(false);
 
   const earthSystemRef = useRef<THREE.Group | null>(null);
   const earthSpinRef = useRef<THREE.Group | null>(null);
@@ -178,8 +181,8 @@ export function SolarSystemScene({
     []
   );
 
-  // Snap camera when cameraMode changes
-  useEffect(() => {
+  // Snap camera synchronously before paint when cameraMode changes
+  useLayoutEffect(() => {
     const controls = controlsRef.current;
     const t = computeOrbitalMechanicsFromJD(jdRef.current);
     const [ex, ey, ez] = getEarthScenePosition(t.lambdaE, BASE_ORBIT_R, VIS_ECC);
@@ -207,6 +210,10 @@ export function SolarSystemScene({
   }, [cameraMode, camera, jdRef]);
 
   useFrame((state, delta) => {
+    if (!readyCalledRef.current) {
+      readyCalledRef.current = true;
+      queueMicrotask(() => onReady?.());
+    }
     const clampedDelta = Math.min(0.05, delta);
 
     if (isPlaying) {
