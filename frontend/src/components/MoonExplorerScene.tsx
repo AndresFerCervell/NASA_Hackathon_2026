@@ -90,12 +90,12 @@ export function MoonExplorerScene({
     const lat = THREE.MathUtils.radToDeg(
       Math.asin(THREE.MathUtils.clamp(p.y / MOON_RADIUS, -1, 1))
     );
-    const lon = THREE.MathUtils.radToDeg(Math.atan2(-p.x, p.z));
+    const lon = THREE.MathUtils.radToDeg(Math.atan2(p.x, p.z));
     onHoverCoords(`${formatDms(lat, true)}  ·  ${formatDms(lon, false)}`);
   };
 
   const handleSpherePointerOut = () => {
-    onHoverCoords('Apunta a la superficie');
+    onHoverCoords('Point at the surface');
   };
 
   return (
@@ -148,7 +148,7 @@ export function MoonExplorerScene({
       </mesh>
       <Billboard position={[northPolePos.x, northPolePos.y + 0.16, northPolePos.z]}>
         <Text fontSize={0.095} color="#f4eddb">
-          POLO NORTE · 90° N
+          NORTH POLE · 90° N
         </Text>
       </Billboard>
 
@@ -158,7 +158,7 @@ export function MoonExplorerScene({
       </mesh>
       <Billboard position={[southPolePos.x, southPolePos.y - 0.16, southPolePos.z]}>
         <Text fontSize={0.095} color="#f4eddb">
-          POLO SUR · 90° S
+          SOUTH POLE · 90° S
         </Text>
       </Billboard>
 

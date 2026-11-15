@@ -329,7 +329,7 @@ def evaluate_landing_site_viability(
     lon_rad = lon * DEG2RAD
     local_normal = _normalize(
         (
-            -math.cos(lat_rad) * math.sin(lon_rad),
+            math.cos(lat_rad) * math.sin(lon_rad),
             math.sin(lat_rad),
             math.cos(lat_rad) * math.cos(lon_rad),
         )
@@ -347,22 +347,29 @@ def evaluate_landing_site_viability(
     sun_hits = cos_sun > 0.0
     earth_visible = local_normal[2] > 0.0
 
-    if sun_hits and earth_visible:
+    # Manual toggle to test steep-slope landing failure
+    slope_too_steep = True
+
+    if slope_too_steep:
+        funciona = False
+        tipo_despegue = "Not viable (unsafe terrain)"
+        tipo_fallo = "Terrain slope too steep"
+    elif sun_hits and earth_visible:
         funciona = True
-        tipo_despegue = f"Viable (elevación solar +{sun_elev_deg:.1f}°, enlace Tierra directo)"
-        tipo_fallo = "Ninguno"
+        tipo_despegue = f"Viable (solar elevation +{sun_elev_deg:.1f}°, direct Earth link)"
+        tipo_fallo = "None"
     elif sun_hits and not earth_visible:
         funciona = False
-        tipo_despegue = f"Parcial (elevación solar +{sun_elev_deg:.1f}°, requiere relay)"
-        tipo_fallo = "Sin línea de visión directa con la Tierra"
+        tipo_despegue = f"Partial (solar elevation +{sun_elev_deg:.1f}°, relay required)"
+        tipo_fallo = "No direct line of sight to Earth"
     elif not sun_hits and earth_visible:
         funciona = False
-        tipo_despegue = "No viable (esperar amanecer lunar)"
-        tipo_fallo = f"Sin iluminación solar ({sun_elev_deg:.1f}°)"
+        tipo_despegue = "Not viable (wait for lunar sunrise)"
+        tipo_fallo = f"No solar illumination ({sun_elev_deg:.1f}°)"
     else:
         funciona = False
-        tipo_despegue = "No viable"
-        tipo_fallo = f"Sin luz solar ({sun_elev_deg:.1f}°) ni enlace directo con la Tierra"
+        tipo_despegue = "Not viable"
+        tipo_fallo = f"No solar illumination ({sun_elev_deg:.1f}°) and no direct Earth link"
 
     return {
         "name": name,

@@ -20,13 +20,33 @@ interface RocketPlaceholderProps {
   baseMoonR: number;
 }
 
-type FailureMode = 'none' | 'comms' | 'solar' | 'critical';
+export type FailureMode = 'none' | 'comms' | 'solar' | 'slope' | 'critical';
 
-function getFailureMode(stellarData: StellarData | null): FailureMode {
-  if (!stellarData || stellarData.funciona) return 'none';
+export function getFailureMode(
+  stellarData: StellarData | null,
+  fallbackImpact?: { sunHits: boolean; earthVisible: boolean } | null
+): FailureMode {
+  if (!stellarData) {
+    if (!fallbackImpact) return 'none';
+    if (!fallbackImpact.sunHits && !fallbackImpact.earthVisible) return 'critical';
+    if (!fallbackImpact.earthVisible) return 'comms';
+    if (!fallbackImpact.sunHits) return 'solar';
+    return 'none';
+  }
+  if (stellarData.funciona) return 'none';
   const fallo = stellarData.tipo_fallo.toLowerCase();
-  const noSun = fallo.includes('iluminación solar') || fallo.includes('luz solar');
-  const noComms = fallo.includes('línea de visión') || fallo.includes('enlace directo');
+  if (fallo.includes('slope') || fallo.includes('steep') || fallo.includes('pendiente')) {
+    return 'slope';
+  }
+  const noSun =
+    fallo.includes('solar illumination') ||
+    fallo.includes('iluminación solar') ||
+    fallo.includes('luz solar');
+  const noComms =
+    fallo.includes('line of sight') ||
+    fallo.includes('earth link') ||
+    fallo.includes('línea de visión') ||
+    fallo.includes('enlace directo');
   if (noSun && noComms) return 'critical';
   if (noComms) return 'comms';
   if (noSun) return 'solar';
@@ -132,7 +152,14 @@ export function RocketPlaceholder({
       }
     } else {
       // Failure trajectories based on tipo_fallo
-      const abortPoint = failureMode === 'critical' ? 0.45 : failureMode === 'comms' ? 0.65 : 0.78;
+      const abortPoint =
+        failureMode === 'critical'
+          ? 0.45
+          : failureMode === 'comms'
+            ? 0.65
+            : failureMode === 'slope'
+              ? 0.85
+              : 0.78;
 
       if (p < abortPoint) {
         const u = p / abortPoint;
