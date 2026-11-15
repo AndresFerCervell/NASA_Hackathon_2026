@@ -59,11 +59,12 @@ export function App() {
   const [displayJD, setDisplayJD] = useState<number>(INITIAL_JD);
   const [activeTab, setActiveTab] = useState<ActiveTab>('moon');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speedHoursPerSec, setSpeedHoursPerSec] = useState<number>(24);
   const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [openMissionId, setOpenMissionId] = useState<string | null>(null);
+  const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [missionRunId, setMissionRunId] = useState(0);
 
@@ -87,6 +88,24 @@ export function App() {
     checkBackendHealth(controller.signal).then(setApiOnline);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!openMissionId) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (missionBarRef.current && !missionBarRef.current.contains(e.target as Node)) {
+        setOpenMissionId(null);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMissionId(null);
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [openMissionId]);
 
   const cal = useMemo(() => jdToCalendarUTC(displayJD), [displayJD]);
   const telemetry = useMemo(() => computeOrbitalMechanicsFromJD(displayJD), [displayJD]);
@@ -239,7 +258,7 @@ export function App() {
                 <SolarSystemScene
                   jdRef={jdRef}
                   isPlaying={isPlaying}
-                  speedHoursPerSec={speedHoursPerSec}
+                  speedHoursPerSec={24}
                   cameraMode={cameraMode}
                   showLabels={showLabels}
                   onTelemetrySample={handleTelemetrySample}
@@ -330,39 +349,17 @@ export function App() {
               </div>
 
               <div className="toolbar">
-                {/* Primary Tab Switcher */}
-                <div className="btn-group" role="tablist" aria-label="Main view">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'moon'}
-                    className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
-                    onClick={() => setActiveTab('moon')}
-                  >
-                    Lunar Globe
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'orbital'}
-                    className={`hud-btn ${activeTab === 'orbital' ? 'is-active' : ''}`}
-                    onClick={() => setActiveTab('orbital')}
-                  >
-                    Orbital Simulator
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  className={`hud-btn ${showComparison ? 'is-active' : ''}`}
-                  aria-pressed={showComparison}
-                  onClick={() => setShowComparison((v) => !v)}
-                >
-                  Compare Sites
-                </button>
-
                 {activeTab === 'orbital' && (
                   <>
+                    <button
+                      type="button"
+                      className={`hud-btn ${showComparison ? 'is-active' : ''}`}
+                      aria-pressed={showComparison}
+                      onClick={() => setShowComparison((v) => !v)}
+                    >
+                      Compare Sites
+                    </button>
+
                     <div className="btn-group" role="group" aria-label="Camera mode">
                       <button
                         type="button"
@@ -406,32 +403,41 @@ export function App() {
                     >
                       {showAdvancedTelemetry ? 'Hide Telemetry' : 'Advanced View'}
                     </button>
-
-                    <div className="btn-group" role="radiogroup" aria-label="Simulation speed">
-                      {[
-                        { label: '1h/s', speed: 1 },
-                        { label: '1d/s', speed: 24 },
-                        { label: '1mo/s', speed: 730 },
-                      ].map((item) => (
-                        <button
-                          key={item.speed}
-                          type="button"
-                          role="radio"
-                          aria-checked={speedHoursPerSec === item.speed}
-                          className={`hud-btn ${speedHoursPerSec === item.speed ? 'is-active' : ''}`}
-                          onClick={() => setSpeedHoursPerSec(item.speed)}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
                   </>
                 )}
+
+                {/* Primary Tab Switcher (always pinned to the right) */}
+                <div className="btn-group tab-switcher-fixed" role="tablist" aria-label="Main view">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'moon'}
+                    className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setShowComparison(false);
+                      setActiveTab('moon');
+                    }}
+                  >
+                    Lunar Globe
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'orbital'}
+                    className={`hud-btn ${activeTab === 'orbital' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setOpenMissionId(null);
+                      setActiveTab('orbital');
+                    }}
+                  >
+                    Orbital Simulator
+                  </button>
+                </div>
               </div>
             </header>
 
-            {/* Side-by-Side Comparison Drawer (available in both tabs) */}
-            {showComparison && (
+            {/* Side-by-Side Comparison Drawer (Orbital view only) */}
+            {activeTab === 'orbital' && showComparison && (
               <section className="hud-card comparison-panel" aria-label="Lunar landing site comparison">
                 <div className="comparison-grid">
                   {comparisonRows.map(({ site, impact }) => (
@@ -455,9 +461,8 @@ export function App() {
                       </div>
                       <div className="compare-metrics">
                         <span>
-                          {impact.sunHits && impact.earthVisible ? '✓ Success' : '✕ Failed'} (Sun{' '}
-                          {impact.elevationDeg >= 0 ? '+' : ''}
-                          {impact.elevationDeg.toFixed(1)}&deg;)
+                          Sun: {impact.elevationDeg >= 0 ? '+' : ''}
+                          {impact.elevationDeg.toFixed(1)}&deg;
                         </span>
                         <span>
                           {impact.earthVisible ? '📡 Earth visible' : 'No Earth view'} (
@@ -506,19 +511,103 @@ export function App() {
                     <strong className="moon-coords-val">{hoverCoords}</strong>
                   </div>
 
-                  <div className="hud-card sites-bar" role="group" aria-label="Lunar missions and sites">
-                    {sites.map((site) => (
-                      <button
-                        key={site.id}
-                        type="button"
-                        className="site-pill"
-                        onClick={() => handleSelectSite(site)}
-                        title={site.dateLabel ? `Date: ${site.dateLabel}` : site.region}
-                      >
-                        <span className={`site-dot ${site.pole}`} />
-                        <span>{site.name}</span>
-                      </button>
-                    ))}
+                  <div className="sites-bar-wrap" ref={missionBarRef}>
+                    {(() => {
+                      const activeMission = sites.find((s) => s.id === openMissionId);
+                      if (!activeMission) return null;
+                      const missionJD = activeMission.missionDate
+                        ? clampOrWrapJD(
+                            computeJulianDate(
+                              activeMission.missionDate.year,
+                              activeMission.missionDate.month,
+                              activeMission.missionDate.day,
+                              activeMission.missionDate.hour
+                            )
+                          )
+                        : displayJD;
+                      const missionImpact = computeSiteSolarImpact(activeMission, missionJD);
+
+                      return (
+                        <div
+                          className="hud-card mission-dropdown-card"
+                          role="region"
+                          aria-label={`${activeMission.name} details`}
+                        >
+                          <div className="compare-card-head">
+                            <div>
+                              <span className="compare-program">{activeMission.program}</span>
+                              <div>
+                                <strong>{activeMission.name}</strong>
+                              </div>
+                              <span className="mission-region">{activeMission.region}</span>
+                            </div>
+                          </div>
+
+                          <div className="compare-metrics">
+                            <span>
+                              {formatDms(activeMission.latDeg, true)},{' '}
+                              {formatDms(activeMission.lonDeg, false)}
+                            </span>
+                            {activeMission.dateLabel && <span>Date: {activeMission.dateLabel}</span>}
+                          </div>
+
+                          <div className="compare-metrics">
+                            <span>
+                              Sun: {missionImpact.elevationDeg >= 0 ? '+' : ''}
+                              {missionImpact.elevationDeg.toFixed(1)}&deg;
+                            </span>
+                            <span>
+                              {missionImpact.earthVisible ? '📡 Earth visible' : 'No Earth view'} (
+                              {missionImpact.earthElevationDeg >= 0 ? '+' : ''}
+                              {missionImpact.earthElevationDeg.toFixed(1)}&deg;)
+                            </span>
+                          </div>
+
+                          <div className="compare-actions">
+                            <button
+                              type="button"
+                              className="hud-btn is-active"
+                              onClick={() => {
+                                setOpenMissionId(null);
+                                handleSelectSite(activeMission);
+                              }}
+                            >
+                              View in Orbit
+                            </button>
+                            <a
+                              className="quickmap-link"
+                              href={getQuickmapUrl(activeMission.latDeg, activeMission.lonDeg)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              LROC QuickMap ↗
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="hud-card sites-bar" role="group" aria-label="Lunar missions and sites">
+                      {sites.map((site) => {
+                        const isOpen = openMissionId === site.id;
+                        return (
+                          <button
+                            key={site.id}
+                            type="button"
+                            className={`site-pill ${isOpen ? 'is-open' : ''}`}
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenMissionId((prev) => (prev === site.id ? null : site.id))}
+                            title={site.dateLabel ? `Date: ${site.dateLabel}` : site.region}
+                          >
+                            <span className={`site-dot ${site.pole}`} />
+                            <span>{site.name}</span>
+                            <span className="site-pill-chevron" aria-hidden="true">
+                              {isOpen ? '▴' : '▾'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="hud-card btn-group" aria-label="Lunar camera controls">
@@ -564,18 +653,6 @@ export function App() {
               <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
                 {selectedSite && solarImpact && (
                   <div className="hud-card solar-impact-card" role="status" aria-live="polite">
-                    {(() => {
-                      const isSuccess = stellarData
-                        ? stellarData.funciona
-                        : solarImpact.sunHits && solarImpact.earthVisible;
-                      return (
-                        <div className={`solar-badge ${isSuccess ? 'success' : 'failed'}`}>
-                          <span>{isSuccess ? '✓' : '✕'}</span>
-                          <span>{isSuccess ? 'Success' : 'Failed'}</span>
-                        </div>
-                      );
-                    })()}
-
                     <div className="solar-meta">
                       <strong>
                         {stellarData?.name ?? selectedSite.name} &middot;{' '}
@@ -586,17 +663,8 @@ export function App() {
                         {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
                         {solarImpact.earthVisible ? 'Earth visible (Comms OK)' : 'No direct Earth view'}
                       </span>
-                      {isStellarLoading && <span>Checking viability on backend...</span>}
+                      {isStellarLoading && <span>Loading site telemetry...</span>}
                       {stellarError && <span>{stellarError}</span>}
-                      {stellarData && (
-                        <span>
-                          Viability: <strong>{stellarData.funciona ? 'Viable' : 'Not viable'}</strong> &bull;{' '}
-                          {stellarData.tipo_despegue}
-                          {stellarData.tipo_fallo !== 'None' && stellarData.tipo_fallo !== 'Ninguno'
-                            ? ` • Failure: ${stellarData.tipo_fallo}`
-                            : ''}
-                        </span>
-                      )}
                     </div>
 
                     <div className="btn-group">
