@@ -247,94 +247,140 @@ export function MoonExplorerScene({
         </Billboard>
 
         {/* Curated & Custom Landing Sites */}
-        {sites.map((site) => {
-          const pos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.035);
-          const isHovered = hoveredId === site.id;
-          const isSelected = selectedSiteId === site.id;
-          const isLaunching = launchingSiteId === site.id;
-          const isPolarCluster = site.pole === 'south';
-          const showSiteLabel = !isPolarCluster || isHovered || isSelected || isLaunching;
-          const labelPos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.28);
-          const pinColor = isLaunching
-            ? '#ef4444'
-            : site.pole === 'south'
-              ? '#38bdf8'
-              : site.pole === 'north'
-                ? '#fbbf24'
-                : '#34d399';
+        {(() => {
+          const southSites = sites.filter((s) => s.pole === 'south');
+          return sites.map((site) => {
+            const pos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.035);
+            const isHovered = hoveredId === site.id;
+            const isSelected = selectedSiteId === site.id;
+            const isLaunching = launchingSiteId === site.id;
+            const isPolarCluster = site.pole === 'south';
+            const southIndex = isPolarCluster
+              ? southSites.findIndex((s) => s.id === site.id)
+              : -1;
+            const southCount = Math.max(1, southSites.length);
+            const calloutAngle = (southIndex / southCount) * Math.PI * 2 - Math.PI / 4;
+            const calloutRadius = 0.88;
+            const calloutY = -MOON_RADIUS - 0.38 - (southIndex % 2) * 0.16;
+            const polarCalloutPos: [number, number, number] = [
+              Math.sin(calloutAngle) * calloutRadius,
+              calloutY,
+              Math.cos(calloutAngle) * calloutRadius,
+            ];
 
-          return (
-            <group key={site.id}>
-              <mesh
-                position={pos}
-                scale={isLaunching ? 1.65 : isHovered || isSelected ? 1.45 : 1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (launchingSiteId) return;
-                  document.body.style.cursor = 'auto';
-                  onSelectSite(site);
-                }}
-                onPointerOver={(e) => {
-                  e.stopPropagation();
-                  if (launchingSiteId) return;
-                  setHoveredId(site.id);
-                  document.body.style.cursor = 'pointer';
-                }}
-                onPointerOut={() => {
-                  setHoveredId(null);
-                  document.body.style.cursor = 'auto';
-                }}
-              >
-                <sphereGeometry args={[0.075, 20, 20]} />
-                <meshBasicMaterial color={isLaunching ? '#ff3b3b' : isHovered ? '#ffffff' : pinColor} />
-              </mesh>
+            const labelPos = geoPoint(site.latDeg, site.lonDeg, MOON_RADIUS + 0.28);
+            const pinColor = isLaunching
+              ? '#ef4444'
+              : site.pole === 'south'
+                ? '#38bdf8'
+                : site.pole === 'north'
+                  ? '#fbbf24'
+                  : '#34d399';
 
-              {isLaunching ? (
-                <TargetLockPulse position={pos} />
-              ) : (
-                /* Outer halo ring */
-                <Billboard position={pos}>
-                  <mesh
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (launchingSiteId) return;
-                      document.body.style.cursor = 'auto';
-                      onSelectSite(site);
-                    }}
-                  >
-                    <ringGeometry args={[0.1, 0.135, 28]} />
-                    <meshBasicMaterial
-                      color={pinColor}
-                      transparent
-                      opacity={isHovered || isSelected ? 0.95 : 0.6}
-                      side={THREE.DoubleSide}
-                    />
-                  </mesh>
-                </Billboard>
-              )}
+            const handleLabelClick = (e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation();
+              if (launchingSiteId) return;
+              document.body.style.cursor = 'auto';
+              onSelectSite(site);
+            };
 
-              {showSiteLabel && (
-                <Billboard
-                  position={[
-                    labelPos.x,
-                    isPolarCluster ? labelPos.y + 0.24 : labelPos.y + 0.06,
-                    labelPos.z,
-                  ]}
+            const handleLabelOver = (e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              if (launchingSiteId) return;
+              setHoveredId(site.id);
+              document.body.style.cursor = 'pointer';
+            };
+
+            const handleLabelOut = () => {
+              setHoveredId(null);
+              document.body.style.cursor = 'auto';
+            };
+
+            return (
+              <group key={site.id}>
+                <mesh
+                  position={pos}
+                  scale={isLaunching ? 1.65 : isHovered || isSelected ? 1.45 : 1}
                 >
-                  <Text
-                    fontSize={0.11}
-                    anchorY="bottom"
-                    color={isLaunching ? '#fecaca' : isHovered ? '#ffffff' : '#f1f5f9'}
-                    outlineWidth={0.012}
-                    outlineColor="#080b12"
-                  >
-                    {site.name}
-                  </Text>
-                </Billboard>
-              )}
-            </group>
-          );
-        })}
+                  <sphereGeometry args={[0.075, 20, 20]} />
+                  <meshBasicMaterial color={isLaunching ? '#ff3b3b' : isHovered ? '#ffffff' : pinColor} />
+                </mesh>
+
+                {isLaunching ? (
+                  <TargetLockPulse position={pos} />
+                ) : (
+                  /* Outer halo ring */
+                  <Billboard position={pos}>
+                    <mesh>
+                      <ringGeometry args={[0.1, 0.135, 28]} />
+                      <meshBasicMaterial
+                        color={pinColor}
+                        transparent
+                        opacity={isHovered || isSelected ? 0.95 : 0.6}
+                        side={THREE.DoubleSide}
+                      />
+                    </mesh>
+                  </Billboard>
+                )}
+
+                {isPolarCluster ? (
+                  <>
+                    <Line
+                      points={[[pos.x, pos.y, pos.z], polarCalloutPos]}
+                      color={isLaunching ? '#ef4444' : isHovered || isSelected ? '#ffffff' : '#38bdf8'}
+                      lineWidth={isLaunching || isHovered || isSelected ? 1.6 : 1.1}
+                      transparent
+                      opacity={isLaunching || isHovered || isSelected ? 0.95 : 0.7}
+                    />
+                    <Billboard position={polarCalloutPos}>
+                      <group
+                        onClick={handleLabelClick}
+                        onPointerOver={handleLabelOver}
+                        onPointerOut={handleLabelOut}
+                      >
+                        <mesh position={[0, 0, -0.005]}>
+                          <planeGeometry args={[1.45, 0.24]} />
+                          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                        </mesh>
+                        <Text
+                          fontSize={0.095}
+                          anchorY="middle"
+                          color={isLaunching ? '#fecaca' : isHovered ? '#ffffff' : '#e2e8f0'}
+                          outlineWidth={0.012}
+                          outlineColor="#080b12"
+                        >
+                          {site.name}
+                        </Text>
+                      </group>
+                    </Billboard>
+                  </>
+                ) : (
+                  <Billboard position={[labelPos.x, labelPos.y + 0.06, labelPos.z]}>
+                    <group
+                      onClick={handleLabelClick}
+                      onPointerOver={handleLabelOver}
+                      onPointerOut={handleLabelOut}
+                    >
+                      <mesh position={[0, 0.06, -0.005]}>
+                        <planeGeometry args={[1.45, 0.24]} />
+                        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                      </mesh>
+                      <Text
+                        fontSize={0.11}
+                        anchorY="bottom"
+                        color={isLaunching ? '#fecaca' : isHovered ? '#ffffff' : '#f1f5f9'}
+                        outlineWidth={0.012}
+                        outlineColor="#080b12"
+                      >
+                        {site.name}
+                      </Text>
+                    </group>
+                  </Billboard>
+                )}
+              </group>
+            );
+          });
+        })()}
       </group>
     </>
   );
