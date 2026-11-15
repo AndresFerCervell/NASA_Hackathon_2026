@@ -77,8 +77,10 @@ export function App() {
     data: stellarData,
     handlePickLandingSite,
     isLoading: isStellarLoading,
+    isWakingUp: isBackendWakingUp,
     error: stellarError,
   } = useData();
+  const [loadingElapsedSec, setLoadingElapsedSec] = useState(0);
   const [hoverCoords, setHoverCoords] = useState<string>('Point at the surface');
   const [moonZoomTrigger, setMoonZoomTrigger] = useState<{
     seq: number;
@@ -87,10 +89,38 @@ export function App() {
   } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const controller = new AbortController();
-    checkBackendHealth(controller.signal).then(setApiOnline);
-    return () => controller.abort();
+    let retryTimer: number | undefined;
+
+    const probe = async (attempt: number) => {
+      const ok = await checkBackendHealth(controller.signal);
+      if (cancelled) return;
+      setApiOnline(ok);
+      if (!ok && attempt < 8) {
+        retryTimer = window.setTimeout(() => void probe(attempt + 1), 8000);
+      }
+    };
+
+    void probe(0);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isStellarLoading) {
+      setLoadingElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setLoadingElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isStellarLoading]);
 
   useEffect(() => {
     if (!openMissionId) return;
@@ -147,12 +177,15 @@ export function App() {
     if (isStellarLoading) return;
 
     if (selectedSite) {
-      await handlePickLandingSite(selectedSite.id, {
+      const res = await handlePickLandingSite(selectedSite.id, {
         fecha: jdToUtcDate(jdRef.current),
         lat: selectedSite.latDeg,
         lon: selectedSite.lonDeg,
         name: selectedSite.name,
       });
+      if (res) {
+        setApiOnline(true);
+      }
     }
 
     setCameraMode('geocentric');
@@ -845,10 +878,21 @@ export function App() {
             </div>
 
             <span className="sim-loading-eyebrow">One Safe Step For Mankind</span>
-            <strong className="sim-loading-title">Calculating Landing Viability...</strong>
+            <strong className="sim-loading-title">
+              {isBackendWakingUp || apiOnline === false
+                ? 'Deploying / Waking Up Backend...'
+                : 'Calculating Landing Viability...'}
+            </strong>
             <span className="sim-loading-sub">
-              {selectedSite ? `${selectedSite.name} • ` : ''}Ephemeris &amp; LOLA Terrain Check
+              {isBackendWakingUp || apiOnline === false
+                ? `Render free instance sleeps after 15 min of inactivity. Starting up (${loadingElapsedSec}s) — simulation will launch automatically.`
+                : `${selectedSite ? `${selectedSite.name} • ` : ''}Ephemeris & LOLA Terrain Check${loadingElapsedSec > 0 ? ` (${loadingElapsedSec}s)` : ''}`}
             </span>
+            {(isBackendWakingUp || apiOnline === false) && (
+              <span className="sim-loading-wakeup-badge">
+                Cold start in progress &bull; Please wait (~30–60s)
+              </span>
+            )}
             <div className="sim-loading-bar" aria-hidden="true">
               <div className="sim-loading-bar-fill" />
             </div>

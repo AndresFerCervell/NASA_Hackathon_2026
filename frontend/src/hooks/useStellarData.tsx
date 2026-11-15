@@ -6,6 +6,7 @@ export function useData() {
   const [data, setData] = useState<StellarData | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isWakingUp, setIsWakingUp] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const requestSeqRef = useRef(0);
 
@@ -16,9 +17,24 @@ export function useData() {
       setData(null);
       setError(null);
       setIsLoading(true);
+      setIsWakingUp(false);
+
+      const slowTimer = window.setTimeout(() => {
+        if (requestSeqRef.current === seq) {
+          setIsWakingUp(true);
+        }
+      }, 3500);
 
       try {
-        const response = await getDatos(siteId, options);
+        const response = await getDatos(siteId, {
+          ...options,
+          onWakeupNotice: () => {
+            if (requestSeqRef.current === seq) {
+              setIsWakingUp(true);
+            }
+            options.onWakeupNotice?.();
+          },
+        });
         if (requestSeqRef.current === seq) {
           setData(response);
         }
@@ -26,12 +42,14 @@ export function useData() {
       } catch (err) {
         if (requestSeqRef.current === seq) {
           console.error('Failed to fetch landing site data', err);
-          setError('Could not load site data.');
+          setError('Could not reach the simulation backend. Please try again.');
         }
         return null;
       } finally {
+        window.clearTimeout(slowTimer);
         if (requestSeqRef.current === seq) {
           setIsLoading(false);
+          setIsWakingUp(false);
         }
       }
     },
@@ -44,6 +62,7 @@ export function useData() {
     data,
     handlePickLandingSite,
     isLoading,
+    isWakingUp,
     error,
   };
 }

@@ -1393,6 +1393,17 @@ body,
 .sim-loading-sub {
   font-size: 0.76rem;
   color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.sim-loading-wakeup-badge {
+  font-size: 0.69rem;
+  font-weight: 600;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
 }
 
 .sim-loading-bar {
