@@ -1,6 +1,8 @@
-﻿"""Regresiones del evaluador y del flujo local. Todos los datos son sintéticos."""
+"""Regresiones del evaluador y del flujo local. Todos los datos son sintéticos."""
 from datetime import timedelta
 import json
+import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -9,9 +11,9 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from calculos import DICCIONARIO_FALLOS, MODELO_ECLIPSE, LandingSiteEvaluator
-from efemerides_lunar import generar_efemerides
-from procesar_sitio_lunar import procesar_peticion_frontend
+from app.evaluation import DICCIONARIO_FALLOS, MODELO_ECLIPSE, LandingSiteEvaluator
+from app.astronomy.lunar_geometry import generar_efemerides
+from evaluar import procesar_peticion_frontend
 
 
 def sitio(lat=-89.65, lon=129.2):
@@ -376,8 +378,8 @@ class FlujoLocalTests(unittest.TestCase):
         datos = sitio()
         self.terreno = {"latitud": datos["lat"], "longitud": datos["lon"],
                         **{k: datos[k] for k in ("elevacion_m", "pendiente_deg", "horizonte_360", "metadatos")}}
-        self.mock_terreno = patch("procesar_sitio_lunar.calcular_terreno", return_value=self.terreno).start()
-        self.mock_geometria = patch("efemerides_lunar.calcular_desde_lugar", side_effect=tabla_sintetica).start()
+        self.mock_terreno = patch("evaluar.calcular_terreno", return_value=self.terreno).start()
+        self.mock_geometria = patch("app.astronomy.lunar_geometry.calcular_desde_lugar", side_effect=tabla_sintetica).start()
         patch("requests.sessions.Session.request", side_effect=AssertionError("No se permite red en estas pruebas")).start()
         self.addCleanup(patch.stopall)
 
@@ -501,7 +503,7 @@ class FlujoLocalTests(unittest.TestCase):
     def test_fallo_limpieza_detiene_calculo_y_libera_bloqueo(self):
         with TemporaryDirectory() as carpeta:
             (Path(carpeta) / "peticion_anterior").mkdir()
-            with patch("procesar_sitio_lunar.shutil.rmtree", side_effect=PermissionError("sin permiso")):
+            with patch("evaluar.shutil.rmtree", side_effect=PermissionError("sin permiso")):
                 with self.assertRaises(PermissionError):
                     self.procesar(carpeta_salida=carpeta)
             self.mock_terreno.assert_not_called()
@@ -534,6 +536,29 @@ class FlujoLocalTests(unittest.TestCase):
         self.assertIsNone(filas[0]["sol_azimut_deg"])
         self.assertEqual(resultado["ephemeris"]["modelo"]["eclipse"], MODELO_ECLIPSE)
         json.dumps(resultado, allow_nan=False)
+
+
+class EntradaUnicaTests(unittest.TestCase):
+    def test_cli_desde_otra_carpeta_reevalua_sin_escribir_resultados(self):
+        payload = {"sitios": {"prueba": sitio()}, "ephemeris": efemerides(horas=24)}
+        for muestra in payload["ephemeris"]["timeline"]:
+            if muestra["hora_offset"] >= 16:
+                muestra["sol_elevacion_deg"] = -20
+        cli = Path(__file__).resolve().parents[1] / "evaluar.py"
+        with TemporaryDirectory() as temporal:
+            entrada = Path(temporal) / "entrada.json"
+            entrada.write_text(json.dumps(payload), encoding="utf-8")
+            for porcentaje in (50, 75):
+                proceso = subprocess.run(
+                    [sys.executable, "-X", "utf8", "-B", str(cli), "--entrada", str(entrada),
+                     "--min-porcentaje-luz", str(porcentaje)],
+                    cwd=temporal, capture_output=True, text=True, check=True,
+                    encoding="utf-8", timeout=30,
+                )
+                esperado = LandingSiteEvaluator(min_porcentaje_luz=porcentaje).evaluar_dataset_completo(payload)
+                self.assertEqual(json.loads(proceso.stdout), json.loads(json.dumps(esperado)))
+                self.assertEqual(esperado["prueba"]["viable"], porcentaje == 50)
+            self.assertEqual([p.name for p in Path(temporal).iterdir()], ["entrada.json"])
 
 
 if __name__ == "__main__":

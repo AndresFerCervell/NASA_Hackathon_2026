@@ -1,16 +1,14 @@
 """LOLA -> elevación, pendiente máxima/P95 local y horizonte de 360 direcciones.
 
 Instalar: pip install numpy requests rasterio pyproj
-Ejecutar: python terreno_lola.py
-Salida automática: terreno_latitud_longitud_altura.json (altura en metros).
-Script autónomo: contiene todos los cálculos y no requiere notebooks ni otros scripts.
+Uso: importado por evaluar.py; no requiere notebooks ni otros scripts.
+Los DEM se reutilizan desde backend/data/lola; salida=None evita escribir JSON.
 Exporta latitud, longitud, elevacion_m, pendiente_deg (máximo), pendiente_p95_deg,
 horizonte_360 y metadatos. P95 usa interpolación lineal entre muestras ordenadas.
 La primera ejecución descarga el DEM global; las siguientes reutilizan la copia local.
 La pendiente usa recortes remotos de alta resolución o DEM_LOCAL.
 """
 from pathlib import Path
-import argparse
 import json
 import re
 
@@ -21,7 +19,7 @@ from rasterio.windows import Window
 from pyproj import Transformer, Geod
 
 # ==============================================================================
-# PARÁMETROS DE CONFIGURACIÓN (modifica estos valores antes de ejecutar)
+# Valores predeterminados del cálculo de terreno
 # ==============================================================================
 LATITUD = -89.65
 LONGITUD = 129.2
@@ -35,9 +33,7 @@ DEM_LOCAL = None  # Selección automática según coordenadas
 RADIO_LUNA = 1_737_400.0  # metros
 BASE = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/"
 DEM_SUR = "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_83S_10MPP_ADJ.TIF"
-CARPETA_SCRIPT = Path(__file__).resolve().parent
-CARPETA_DATOS = CARPETA_SCRIPT / "datos"
-SALIDA_PREDETERMINADA = CARPETA_SCRIPT / "terreno_{latitud}_{longitud}_{elevacion_m:.2f}.json"
+CARPETA_DATOS = Path(__file__).resolve().parents[1] / "data" / "lola"
 
 
 def cargar_lola(ppd=64):
@@ -97,23 +93,6 @@ def elevacion(datos, escala, lat, lon):
     a, b, c, d = vecinos * escala
     # La etiqueta especifica altura = DN * escala. OFFSET solo se suma para obtener RADIO.
     return (1 - fy) * ((1 - fx) * a + fx * b) + fy * ((1 - fx) * c + fx * d)
-
-
-def pendiente_pixel(datos, escala, lat, lon):
-    """Magnitud máxima de pendiente: atan(|gradiente|), estimada con Horn 3x3."""
-    ppd = datos.shape[0] / 180
-    fila = min(int((90 - lat) * ppd), datos.shape[0] - 1)
-    col = int((lon % 360) * ppd) % datos.shape[1]
-    latc, lonc = 90 - (fila + 0.5) / ppd, (col + 0.5) / ppd
-    lats = np.clip(latc + np.array([1, 0, -1]) / ppd, -90 + 0.5 / ppd, 90 - 0.5 / ppd)
-    lons = lonc + np.array([-1, 0, 1]) / ppd
-    z = elevacion(datos, escala, lats[:, None], lons[None, :])
-    r = RADIO_LUNA + z[1, 1]
-    dx = r * np.cos(np.deg2rad(latc)) * np.deg2rad(1 / ppd)
-    dy_total = r * np.deg2rad(lats[0] - lats[2])
-    gx = ((z[0, 2] + 2*z[1, 2] + z[2, 2]) - (z[0, 0] + 2*z[1, 0] + z[2, 0])) / (8*dx)
-    gy = ((z[0, 0] + 2*z[0, 1] + z[0, 2]) - (z[2, 0] + 2*z[2, 1] + z[2, 2])) / (4*dy_total)
-    return float(np.rad2deg(np.arctan(np.hypot(gx, gy))))
 
 
 def horizonte(datos, escala, lat, lon, h0, radio_km=200, paso_m=None):
@@ -271,12 +250,11 @@ def pendiente_maxima_local(lat, lon, radio_m=200, dem=None):
 
 
 def calcular_terreno(latitud=LATITUD, longitud=LONGITUD, ppd=PPD, radio_km=RADIO_KM, paso_m=PASO_M,
-                     salida=SALIDA_PREDETERMINADA, radio_pendiente_m=RADIO_PENDIENTE_M, dem_local=DEM_LOCAL):
-    """Exporta con coordenadas y altura (elevación) en el nombre; salida=None evita escribir.
+                     salida=None, radio_pendiente_m=RADIO_PENDIENTE_M, dem_local=DEM_LOCAL):
+    """Devuelve terreno y metadatos en memoria; salida=None evita escribir.
 
-    Por defecto genera: terreno_{latitud}_{longitud}_{elevacion_m:.2f}.json
+    salida admite una ruta explícita o una plantilla con campos del resultado.
     Los valores dentro del JSON conservan su precisión original.
-    salida también admite una ruta explícita o una plantilla con campos del resultado.
     """
     if not (np.isfinite(latitud) and -90 < latitud < 90 and np.isfinite(longitud)):
         raise ValueError("Latitud entre -90 y 90, sin incluir los polos exactos; longitud finita.")
@@ -314,24 +292,3 @@ def calcular_terreno(latitud=LATITUD, longitud=LONGITUD, ppd=PPD, radio_km=RADIO
         destino.parent.mkdir(parents=True, exist_ok=True)
         destino.write_text(json.dumps(resultado, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
     return resultado
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lat", type=float, default=LATITUD)
-    parser.add_argument("--lon", type=float, default=LONGITUD)
-    parser.add_argument("--ppd", type=int, choices=[4, 16, 64], default=PPD)
-    parser.add_argument("--radio-km", type=float, default=RADIO_KM)
-    parser.add_argument("--paso-m", type=float, default=PASO_M)
-    parser.add_argument("--salida", default=SALIDA_PREDETERMINADA,
-                        help="Ruta opcional; por defecto terreno_latitud_longitud_altura.json")
-    parser.add_argument("--radio-pendiente-m", type=float, default=RADIO_PENDIENTE_M)
-    parser.add_argument("--dem-local", default=DEM_LOCAL,
-                        help="GeoTIFF lunar; automático: LOLA 30 m en latitudes bajas, 10 m en el sur polar")
-    args = parser.parse_args()
-    resultado = calcular_terreno(args.lat, args.lon, args.ppd, args.radio_km, args.paso_m, args.salida,
-                                 args.radio_pendiente_m, args.dem_local)
-    destino_final = Path(str(args.salida).format(altura=resultado["elevacion_m"], **resultado)).resolve()
-    print(f"Guardado: {destino_final}")
-    print(f"Elevación: {resultado['elevacion_m']:.2f} m; pendiente máxima: {resultado['pendiente_deg']:.2f}°; "
-          f"pendiente P95: {resultado['pendiente_p95_deg']:.2f}°")

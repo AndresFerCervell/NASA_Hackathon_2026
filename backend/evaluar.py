@@ -1,7 +1,7 @@
-﻿"""Calcula terreno, efemérides y viabilidad; conserva la última petición.
+"""Calcula terreno, efemérides y viabilidad; conserva la última petición.
 
 Ejemplo desde backend:
-    python procesar_sitio_lunar.py --tiempo 2026-11-14T12:00:00Z --lat -89.65 --lon 129.2 --horas 336
+    python evaluar.py --tiempo 2026-11-14T12:00:00Z --lat -89.65 --lon 129.2 --horas 336
 """
 from __future__ import annotations
 
@@ -18,12 +18,12 @@ from uuid import uuid4
 
 import pandas as pd
 
-from LOLA_Terreno.terreno_lola import calcular_terreno
-from efemerides_lunar import DECIMALES, DURACION_HORAS, PASO_HORAS, generar_efemerides
-from calculos import LandingSiteEvaluator
+from app.terrain import calcular_terreno
+from app.astronomy.lunar_geometry import DECIMALES, DURACION_HORAS, PASO_HORAS, generar_efemerides
+from app.evaluation import LandingSiteEvaluator
 
-RAIZ_REPO = Path(__file__).resolve().parent
-CARPETA_SALIDA = RAIZ_REPO / "datos_lunares"
+CARPETA_BACKEND = Path(__file__).resolve().parent
+CARPETA_SALIDA = CARPETA_BACKEND / "results"
 TIEMPO_DEFAULT = "2026-11-14T12:00:00Z"
 LATITUD_DEFAULT = -89.65
 LONGITUD_DEFAULT = 129.2
@@ -153,6 +153,8 @@ def procesar_peticion_frontend(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--entrada", type=Path,
+                        help="Reevaluar un JSON combinado existente, sin consultar LOLA ni Horizons")
     parser.add_argument("--tiempo", default=TIEMPO_DEFAULT, help="Instante de aterrizaje, ISO 8601")
     parser.add_argument("--lat", type=float, default=LATITUD_DEFAULT)
     parser.add_argument("--lon", type=float, default=LONGITUD_DEFAULT)
@@ -162,6 +164,11 @@ if __name__ == "__main__":
                         help="Porcentaje de las horas solicitadas que debe superarse con luz (0 a 100)")
     parser.add_argument("--carpeta", default=str(CARPETA_SALIDA))
     args = parser.parse_args()
+    if args.entrada is not None:
+        resultado = LandingSiteEvaluator(min_porcentaje_luz=args.min_porcentaje_luz).evaluar_dataset_completo(
+            json.loads(args.entrada.read_text(encoding="utf-8")))
+        print(json.dumps(resultado, indent=2, ensure_ascii=False, allow_nan=False))
+        parser.exit()
     resultado = procesar_peticion_frontend(
         args.tiempo, args.lat, args.lon, duracion_horas=args.horas,
         paso_horas=args.paso_horas, carpeta_salida=args.carpeta,
