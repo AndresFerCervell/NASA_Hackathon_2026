@@ -24,6 +24,7 @@ export interface LandingSite {
   lonDeg: number;
   missionDate?: MissionDateUTC;
   dateLabel?: string;
+  featured?: boolean;
   isCustom?: boolean;
 }
 
@@ -49,6 +50,7 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
     lonDeg: 129.0,
     missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
     dateLabel: '2026-11-14 10:40 UTC',
+    featured: true,
   },
   {
     id: 'apollo-11',
@@ -60,11 +62,12 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
     lonDeg: 23.47,
     missionDate: { year: 1969, month: 7, day: 20, hour: 20.29 },
     dateLabel: '1969-07-20 20:17 UTC',
+    featured: true,
   },
   {
     id: 'south-pole-slope-test',
-    name: 'South Pole Ridge (Slope Test)',
-    program: 'Artemis · Test',
+    name: 'South Pole Ridge',
+    program: 'Artemis · Candidate',
     region: 'South Pole · 89.7° S, 0° E',
     pole: 'south',
     latDeg: -89.7,
@@ -74,12 +77,45 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
   },
   {
     id: 'shackleton-steep-slope',
-    name: 'Shackleton Wall (Steep Slope)',
-    program: 'Artemis · Test',
+    name: 'Shackleton Wall',
+    program: 'Artemis · Candidate',
     region: 'South Pole · Shackleton Crater',
     pole: 'south',
     latDeg: -89.8,
     lonDeg: 90.0,
+    missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
+    dateLabel: '2026-11-14 10:40 UTC',
+  },
+  {
+    id: 'de-gerlache-crater',
+    name: 'De Gerlache Crater',
+    program: 'South Pole · Crater',
+    region: 'South Pole · De Gerlache',
+    pole: 'south',
+    latDeg: -88.48,
+    lonDeg: -88.34,
+    missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
+    dateLabel: '2026-11-14 10:40 UTC',
+  },
+  {
+    id: 'faustini-crater',
+    name: 'Faustini Crater',
+    program: 'South Pole · Crater',
+    region: 'South Pole · Faustini',
+    pole: 'south',
+    latDeg: -87.18,
+    lonDeg: 84.31,
+    missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
+    dateLabel: '2026-11-14 10:40 UTC',
+  },
+  {
+    id: 'cabeus-crater',
+    name: 'Cabeus Crater',
+    program: 'South Pole · Crater',
+    region: 'South Pole · Cabeus',
+    pole: 'south',
+    latDeg: -85.33,
+    lonDeg: -42.13,
     missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
     dateLabel: '2026-11-14 10:40 UTC',
   },

@@ -262,8 +262,8 @@ export function MoonExplorerScene({
               : -1;
             const southCount = Math.max(1, southSites.length);
             const calloutAngle = (southIndex / southCount) * Math.PI * 2 - Math.PI / 4;
-            const calloutRadius = 0.88;
-            const calloutY = -MOON_RADIUS - 0.38 - (southIndex % 2) * 0.16;
+            const calloutRadius = 0.98;
+            const calloutY = -MOON_RADIUS - 0.36 - (southIndex % 3) * 0.18;
             const polarCalloutPos: [number, number, number] = [
               Math.sin(calloutAngle) * calloutRadius,
               calloutY,

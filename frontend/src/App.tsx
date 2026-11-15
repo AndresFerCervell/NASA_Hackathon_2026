@@ -83,6 +83,7 @@ export function App() {
   const viewOptionsRef = useRef<HTMLDivElement | null>(null);
   const audioMenuRef = useRef<HTMLDivElement | null>(null);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [missionRunId, setMissionRunId] = useState(0);
@@ -139,14 +140,18 @@ export function App() {
   }, [isStellarLoading]);
 
   useEffect(() => {
-    if (!openMissionId) return;
+    if (!openMissionId && !catalogOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       if (missionBarRef.current && !missionBarRef.current.contains(e.target as Node)) {
         setOpenMissionId(null);
+        setCatalogOpen(false);
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenMissionId(null);
+      if (e.key === 'Escape') {
+        setOpenMissionId(null);
+        setCatalogOpen(false);
+      }
     };
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('keydown', onKeyDown);
@@ -154,7 +159,7 @@ export function App() {
       window.removeEventListener('mousedown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [openMissionId]);
+  }, [openMissionId, catalogOpen]);
 
   useEffect(() => {
     if (!showAboutModal && !orbitalMissionMenuOpen && !viewOptionsOpen && !audioMenuOpen) return;
@@ -901,27 +906,143 @@ export function App() {
                       );
                     })()}
 
+                    {catalogOpen && !openMissionId && (
+                      <div
+                        className="hud-card site-catalog-card"
+                        role="region"
+                        aria-label="Lunar landing site catalog"
+                      >
+                        <div className="site-catalog-head">
+                          <div>
+                            <span className="compare-program">Candidate Catalog</span>
+                            <strong>South Pole &amp; Crater Sites</strong>
+                          </div>
+                          <button
+                            type="button"
+                            className="hud-btn site-catalog-close"
+                            aria-label="Close site catalog"
+                            onClick={() => setCatalogOpen(false)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="site-catalog-list">
+                          {sites
+                            .filter((s) => !s.featured)
+                            .map((site) => {
+                              const siteJD = site.missionDate
+                                ? clampOrWrapJD(
+                                    computeJulianDate(
+                                      site.missionDate.year,
+                                      site.missionDate.month,
+                                      site.missionDate.day,
+                                      site.missionDate.hour
+                                    )
+                                  )
+                                : displayJD;
+                              const impact = computeSiteSolarImpact(site, siteJD);
+                              const isLaunching = launchingSite?.id === site.id;
+
+                              return (
+                                <div
+                                  key={site.id}
+                                  className={`site-catalog-item ${isLaunching ? 'is-launching' : ''}`}
+                                >
+                                  <div className="site-catalog-item-info">
+                                    <div className="site-catalog-item-title">
+                                      <span className={`site-dot ${site.pole}`} />
+                                      <strong>{site.name}</strong>
+                                    </div>
+                                    <div className="site-catalog-item-meta">
+                                      <span>
+                                        {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
+                                      </span>
+                                      <span>
+                                        Sun {impact.elevationDeg >= 0 ? '+' : ''}
+                                        {impact.elevationDeg.toFixed(1)}&deg;
+                                      </span>
+                                      <span>
+                                        {impact.earthVisible ? '📡 Earth OK' : 'No Earth link'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="site-catalog-item-actions">
+                                    <button
+                                      type="button"
+                                      className="hud-btn"
+                                      onClick={() => {
+                                        setCatalogOpen(false);
+                                        setOpenMissionId(site.id);
+                                      }}
+                                    >
+                                      Details
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="hud-btn is-active"
+                                      onClick={() => {
+                                        setCatalogOpen(false);
+                                        handleSelectSite(site);
+                                      }}
+                                    >
+                                      Orbit →
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="hud-card sites-bar" role="group" aria-label="Lunar missions and sites">
-                      {sites.map((site) => {
-                        const isOpen = openMissionId === site.id;
-                        const isLaunching = launchingSite?.id === site.id;
+                      {sites
+                        .filter((s) => s.featured)
+                        .map((site) => {
+                          const isOpen = openMissionId === site.id;
+                          const isLaunching = launchingSite?.id === site.id;
+                          return (
+                            <button
+                              key={site.id}
+                              type="button"
+                              className={`site-pill ${isOpen ? 'is-open' : ''} ${isLaunching ? 'is-launching' : ''}`}
+                              aria-expanded={isOpen}
+                              onClick={() => {
+                                setCatalogOpen(false);
+                                setOpenMissionId((prev) => (prev === site.id ? null : site.id));
+                              }}
+                              title={site.dateLabel ? `Date: ${site.dateLabel}` : site.region}
+                            >
+                              <span className={`site-dot ${site.pole}`} />
+                              <span>{site.name}</span>
+                              <span className="site-pill-chevron" aria-hidden="true">
+                                {isOpen ? '▴' : '▾'}
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                      {(() => {
+                        const extraCount = sites.filter((s) => !s.featured).length;
+                        if (extraCount === 0) return null;
                         return (
                           <button
-                            key={site.id}
                             type="button"
-                            className={`site-pill ${isOpen ? 'is-open' : ''} ${isLaunching ? 'is-launching' : ''}`}
-                            aria-expanded={isOpen}
-                            onClick={() => setOpenMissionId((prev) => (prev === site.id ? null : site.id))}
-                            title={site.dateLabel ? `Date: ${site.dateLabel}` : site.region}
+                            className={`site-pill catalog-toggle-pill ${catalogOpen ? 'is-open' : ''}`}
+                            aria-expanded={catalogOpen}
+                            onClick={() => {
+                              setOpenMissionId(null);
+                              setCatalogOpen((prev) => !prev);
+                            }}
                           >
-                            <span className={`site-dot ${site.pole}`} />
-                            <span>{site.name}</span>
+                            <span>+ More Sites ({extraCount})</span>
                             <span className="site-pill-chevron" aria-hidden="true">
-                              {isOpen ? '▴' : '▾'}
+                              {catalogOpen ? '▴' : '▾'}
                             </span>
                           </button>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
 
