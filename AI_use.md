@@ -1,5 +1,7 @@
 ## Document for recording AI use
 
+AI used in this project: Chatgpt Codex and Google Antigravity. 
+
 ### Use in backend:
 
 The produced code is generated with AI, guided by the ideas and decisions of the team members.
