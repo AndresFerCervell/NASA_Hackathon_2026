@@ -531,48 +531,48 @@ export function RocketLandingView({
   }, [isExpanded]);
 
   return (
-    <div className={`landing-preview-card ${isExpanded ? 'is-expanded' : ''}`}>
-      <div className="landing-preview-header">
-        <span className={`landing-preview-title ${meta.badgeClass}`}>
-          {meta.title}
-        </span>
-        <div className="landing-preview-actions">
-          <button
-            type="button"
-            className="hud-btn landing-replay-btn"
-            onClick={() => setReplayCount((c) => c + 1)}
-            title="Replay landing animation"
-          >
-            ↻ Replay
-          </button>
-          <button
-            type="button"
-            className={`hud-btn landing-replay-btn ${isExpanded ? 'is-active' : ''}`}
-            onClick={() => setIsExpanded((v) => !v)}
-            aria-expanded={isExpanded}
-            title={isExpanded ? 'Exit fullscreen' : 'Expand to fullscreen'}
-          >
-            {isExpanded ? '⤡ Close' : '⤢ Expand'}
-          </button>
+      <div className={`landing-preview-card ${isExpanded ? 'is-expanded' : ''}`}>
+        <div className="landing-preview-header">
+          <span className={`landing-preview-title ${meta.badgeClass}`}>
+            {meta.title}
+          </span>
+          <div className="landing-preview-actions">
+            <button
+              type="button"
+              className="hud-btn landing-replay-btn"
+              onClick={() => setReplayCount((c) => c + 1)}
+              title="Replay landing animation"
+            >
+              ↻ Replay
+            </button>
+            <button
+              type="button"
+              className={`hud-btn landing-replay-btn ${isExpanded ? 'is-active' : ''}`}
+              onClick={() => setIsExpanded((v) => !v)}
+              aria-expanded={isExpanded}
+              title={isExpanded ? 'Exit fullscreen' : 'Expand to fullscreen'}
+            >
+              {isExpanded ? '⤡ Close' : '⤢ Expand'}
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="landing-canvas-wrap">
-        <CanvasErrorBoundary>
-          <Canvas camera={{ position: [0, 1.55, 3.8], fov: 42, near: 0.1, far: 100 }} dpr={[1, 2]}>
-            <Suspense fallback={null}>
-              <LandingStage
-                failureMode={failureMode}
-                runKey={runKey}
-                isPlaying={isPlaying}
-                onPhaseChange={setPhaseLabel}
-              />
-            </Suspense>
-          </Canvas>
-        </CanvasErrorBoundary>
-      </div>
+        <div className="landing-canvas-wrap">
+          <CanvasErrorBoundary>
+            <Canvas camera={{ position: [0, 1.55, 3.8], fov: 42, near: 0.1, far: 100 }} dpr={[1, 2]}>
+              <Suspense fallback={null}>
+                <LandingStage
+                  failureMode={failureMode}
+                  runKey={runKey}
+                  isPlaying={isPlaying}
+                  onPhaseChange={setPhaseLabel}
+                />
+              </Suspense>
+            </Canvas>
+          </CanvasErrorBoundary>
+        </div>
 
-      <p className="landing-phase-caption">{phaseLabel}</p>
-    </div>
-  );
+        <p className="landing-phase-caption">{phaseLabel}</p>
+      </div>
+      );
 }
