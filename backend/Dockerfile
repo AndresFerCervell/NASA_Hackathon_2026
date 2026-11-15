@@ -32,6 +32,12 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+
+# Librerías compartidas requeridas en runtime por rasterio/GDAL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copiar el entorno virtual completo ya compilado desde la etapa builder
 COPY --from=builder /opt/venv /opt/venv
 
@@ -41,8 +47,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copiar el código fuente de la aplicación
 COPY . .
 
-# Pre-descargar el kernel de efemérides DE440s en /app/data para evitar descargas en frío
-RUN python -c "from app.astronomy.ephemeris import _get_skyfield_context; _get_skyfield_context()"
+# Pre-descargar el kernel de efemérides DE440s en /app/data y verificar que app.main importa sin errores
+RUN python -c "import app.main; from app.astronomy.ephemeris import _get_skyfield_context; _get_skyfield_context()"
 
 # Crear un usuario no raíz por seguridad (Buenas prácticas de contenedorización)
 RUN useradd -m appuser && chown -R appuser:appuser .

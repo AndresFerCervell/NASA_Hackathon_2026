@@ -1,61 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { getDatos, type GetDatosOptions } from '../services/getData';
 import type { StellarData } from '../model/datosEstelares';
 
 export function useData() {
   const [data, setData] = useState<StellarData | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeOptions, setActiveOptions] = useState<GetDatosOptions>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isWakingUp, setIsWakingUp] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSeqRef = useRef(0);
 
-  useEffect(() => {
-    if (!activeId) {
+  const handlePickLandingSite = useCallback(
+    async (siteId: string, options: GetDatosOptions = {}): Promise<StellarData | null> => {
+      const seq = ++requestSeqRef.current;
+      setActiveId(siteId);
       setData(null);
       setError(null);
-      setIsLoading(false);
-      return;
-    }
+      setIsLoading(true);
+      setIsWakingUp(false);
 
-    let cancelled = false;
-    setData(null);
-    setError(null);
-    setIsLoading(true);
+      const slowTimer = window.setTimeout(() => {
+        if (requestSeqRef.current === seq) {
+          setIsWakingUp(true);
+        }
+      }, 15000);
 
-    const fetchData = async () => {
       try {
-        const response = await getDatos(activeId, activeOptions);
-        if (!cancelled) {
+        const response = await getDatos(siteId, {
+          ...options,
+          onWakeupNotice: () => {
+            if (requestSeqRef.current === seq) {
+              setIsWakingUp(true);
+            }
+            options.onWakeupNotice?.();
+          },
+        });
+        if (requestSeqRef.current === seq) {
           setData(response);
         }
+        return response;
       } catch (err) {
-        if (!cancelled) {
+        if (requestSeqRef.current === seq) {
           console.error('Failed to fetch landing site data', err);
-          setError('Could not load site data.');
+          setError('Could not reach the simulation backend. Please try again.');
         }
+        return null;
       } finally {
-        if (!cancelled) {
+        window.clearTimeout(slowTimer);
+        if (requestSeqRef.current === seq) {
           setIsLoading(false);
+          setIsWakingUp(false);
         }
       }
-    };
-
-    fetchData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId, activeOptions]);
-
-  const handlePickLandingSite = (siteId: string, options: GetDatosOptions = {}) => {
-    try {
-      setActiveOptions(options);
-      setActiveId(siteId);
-    } catch (err) {
-      console.error('Failed to select landing site:', err);
-      setError('Could not open landing site.');
-    }
-  };
+    },
+    []
+  );
 
   return {
     activeId,
@@ -63,6 +62,7 @@ export function useData() {
     data,
     handlePickLandingSite,
     isLoading,
+    isWakingUp,
     error,
   };
 }

@@ -1,7 +1,7 @@
 services:
   # --- Backend API (FastAPI + Skyfield DE440s) ---
   - type: web
-    name: landingsite-backend
+    name: ossm-lunar-navigator-api
     runtime: docker
     plan: free
     rootDir: backend
@@ -14,7 +14,7 @@ services:
 
   # --- Frontend UI (React + Vite Static Site) ---
   - type: web
-    name: landingsite-frontend
+    name: ossm-lunar-navigator-web
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
@@ -27,5 +27,5 @@ services:
       - key: VITE_API_URL
         fromService:
           type: web
-          name: landingsite-backend
+          name: ossm-lunar-navigator-api
           property: host

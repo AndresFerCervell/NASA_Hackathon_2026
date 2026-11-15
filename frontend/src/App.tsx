@@ -22,8 +22,10 @@ import { MoonExplorerScene } from './components/MoonExplorerScene';
 import { getFailureMode } from './components/RocketPlaceholder';
 import { RocketLandingView } from './components/RocketLandingView';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
+import { ZenithalPreviewCard } from './components/ZenithalPreviewCard';
 import { checkBackendHealth } from './api/ephemerisClient';
 import { useData } from './hooks/useStellarData';
+import { buildViabilityChecks } from './model/datosEstelares';
 
 type ActiveTab = 'moon' | 'orbital';
 
@@ -59,10 +61,16 @@ export function App() {
   const [displayJD, setDisplayJD] = useState<number>(INITIAL_JD);
   const [activeTab, setActiveTab] = useState<ActiveTab>('moon');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('geocentric');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
+  const [showSimAdvancedData, setShowSimAdvancedData] = useState(false);
+  const [checkFilter, setCheckFilter] = useState<'all' | 'passed' | 'failed'>('all');
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [orbitalMissionMenuOpen, setOrbitalMissionMenuOpen] = useState(false);
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
+  const orbitalMissionMenuRef = useRef<HTMLDivElement | null>(null);
+  const viewOptionsRef = useRef<HTMLDivElement | null>(null);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -74,8 +82,10 @@ export function App() {
     data: stellarData,
     handlePickLandingSite,
     isLoading: isStellarLoading,
+    isWakingUp: isBackendWakingUp,
     error: stellarError,
   } = useData();
+  const [loadingElapsedSec, setLoadingElapsedSec] = useState(0);
   const [hoverCoords, setHoverCoords] = useState<string>('Point at the surface');
   const [moonZoomTrigger, setMoonZoomTrigger] = useState<{
     seq: number;
@@ -84,10 +94,38 @@ export function App() {
   } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const controller = new AbortController();
-    checkBackendHealth(controller.signal).then(setApiOnline);
-    return () => controller.abort();
+    let retryTimer: number | undefined;
+
+    const probe = async (attempt: number) => {
+      const ok = await checkBackendHealth(controller.signal);
+      if (cancelled) return;
+      setApiOnline(ok);
+      if (!ok && attempt < 8) {
+        retryTimer = window.setTimeout(() => void probe(attempt + 1), 8000);
+      }
+    };
+
+    void probe(0);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isStellarLoading) {
+      setLoadingElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setLoadingElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isStellarLoading]);
 
   useEffect(() => {
     if (!openMissionId) return;
@@ -107,21 +145,42 @@ export function App() {
     };
   }, [openMissionId]);
 
+  useEffect(() => {
+    if (!showAboutModal && !orbitalMissionMenuOpen && !viewOptionsOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        orbitalMissionMenuOpen &&
+        orbitalMissionMenuRef.current &&
+        !orbitalMissionMenuRef.current.contains(target)
+      ) {
+        setOrbitalMissionMenuOpen(false);
+      }
+      if (viewOptionsOpen && viewOptionsRef.current && !viewOptionsRef.current.contains(target)) {
+        setViewOptionsOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAboutModal(false);
+        setOrbitalMissionMenuOpen(false);
+        setViewOptionsOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showAboutModal, orbitalMissionMenuOpen, viewOptionsOpen]);
+
   const cal = useMemo(() => jdToCalendarUTC(displayJD), [displayJD]);
   const telemetry = useMemo(() => computeOrbitalMechanicsFromJD(displayJD), [displayJD]);
 
   const solarImpact = useMemo(
     () => (selectedSite ? computeSiteSolarImpact(selectedSite, displayJD) : null),
     [selectedSite, displayJD]
-  );
-
-  const comparisonRows = useMemo(
-    () =>
-      sites.map((site) => ({
-        site,
-        impact: computeSiteSolarImpact(site, displayJD),
-      })),
-    [sites, displayJD]
   );
 
   const setCalendarUTC = useCallback(
@@ -145,52 +204,44 @@ export function App() {
     return new Date(Date.UTC(c.year, c.month - 1, c.day, hr, min, 0));
   }, []);
 
-  const handleToggleSimulate = useCallback(() => {
-    setIsPlaying((prev) => {
-      const nextPlaying = !prev;
-      if (nextPlaying) {
-        setCameraMode('geocentric');
-        setMissionRunId((id) => id + 1);
-        if (selectedSite) {
-          handlePickLandingSite(selectedSite.id, {
-            fecha: jdToUtcDate(jdRef.current),
-            lat: selectedSite.latDeg,
-            lon: selectedSite.lonDeg,
-            name: selectedSite.name,
-          });
-        }
-      }
-      return nextPlaying;
-    });
-  }, [selectedSite, handlePickLandingSite, jdToUtcDate]);
+  const handleToggleSimulate = useCallback(async () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      return;
+    }
+    if (isStellarLoading) return;
 
-  const handleSelectSite = useCallback(
-    (site: LandingSite) => {
-      setSelectedSite(site);
-      let targetJD = jdRef.current;
-      if (site.missionDate) {
-        const { year, month, day, hour } = site.missionDate;
-        targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
-        jdRef.current = targetJD;
-        setDisplayJD(targetJD);
-      }
-      const targetCal = jdToCalendarUTC(targetJD);
-      const hr = Math.floor(targetCal.hour);
-      const min = Math.floor((targetCal.hour - hr) * 60);
-      const targetDate = new Date(
-        Date.UTC(targetCal.year, targetCal.month - 1, targetCal.day, hr, min, 0)
-      );
-      handlePickLandingSite(site.id, {
-        fecha: targetDate,
-        lat: site.latDeg,
-        lon: site.lonDeg,
-        name: site.name,
+    if (selectedSite) {
+      const res = await handlePickLandingSite(selectedSite.id, {
+        fecha: jdToUtcDate(jdRef.current),
+        lat: selectedSite.latDeg,
+        lon: selectedSite.lonDeg,
+        name: selectedSite.name,
       });
-      setCameraMode('zenithal');
-      setActiveTab('orbital');
-    },
-    [handlePickLandingSite]
-  );
+      if (res) {
+        setApiOnline(true);
+      }
+    }
+
+    setCameraMode('geocentric');
+    setShowSimAdvancedData(false);
+    setCheckFilter('all');
+    setMissionRunId((id) => id + 1);
+    setIsPlaying(true);
+  }, [isPlaying, isStellarLoading, selectedSite, handlePickLandingSite, jdToUtcDate]);
+
+  const handleSelectSite = useCallback((site: LandingSite) => {
+    setSelectedSite(site);
+    let targetJD = jdRef.current;
+    if (site.missionDate) {
+      const { year, month, day, hour } = site.missionDate;
+      targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
+      jdRef.current = targetJD;
+      setDisplayJD(targetJD);
+    }
+    setCameraMode('geocentric');
+    setActiveTab('orbital');
+  }, []);
 
   // Keyboard navigation in orbital view
   useEffect(() => {
@@ -235,7 +286,7 @@ export function App() {
           {activeTab === 'moon' ? (
             <Canvas
               key="moon-canvas"
-              camera={{ position: [0, -1.2, 6.2], fov: 36, near: 0.05, far: 120 }}
+              camera={{ position: [0, 0, 7.6], fov: 36, near: 0.05, far: 120 }}
               dpr={[1, 2]}
             >
               <Suspense fallback={null}>
@@ -273,6 +324,16 @@ export function App() {
       </div>
 
       <div className="hud-overlay">
+        {activeTab === 'orbital' && (
+          <ZenithalPreviewCard
+            jdRef={jdRef}
+            cameraMode={cameraMode}
+            onFocusZenithal={() =>
+              setCameraMode((prev) => (prev === 'zenithal' ? 'geocentric' : 'zenithal'))
+            }
+          />
+        )}
+
         {activeTab === 'orbital' && isPlaying ? (
           <aside className="hud-card sim-running-sidebar" aria-label="Running simulation telemetry">
             <div className="sim-running-header">
@@ -302,17 +363,12 @@ export function App() {
                   );
                 })()}
 
+                {/* Basic Simulation Data */}
                 <div className="solar-meta">
                   <strong>{stellarData?.name ?? selectedSite.name}</strong>
                   <span>
                     {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
                   </span>
-                  <span>
-                    Solar elevation: {solarImpact.elevationDeg >= 0 ? '+' : ''}
-                    {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
-                    {solarImpact.earthVisible ? 'Earth visible' : 'No Earth link'}
-                  </span>
-                  {isStellarLoading && <span>Computing viability...</span>}
                   {stellarError && <span>{stellarError}</span>}
                   {stellarData && (
                     <span>
@@ -323,6 +379,124 @@ export function App() {
                     </span>
                   )}
                 </div>
+
+                {(() => {
+                  const ev = stellarData?.evaluacion;
+                  const checks = ev ? buildViabilityChecks(ev) : [];
+                  const passedCount = checks.filter((c) => c.status === 'pass').length;
+                  const failedCount = checks.filter((c) => c.status === 'fail').length;
+                  const filteredChecks = checks.filter((c) => {
+                    if (checkFilter === 'passed') return c.status === 'pass';
+                    if (checkFilter === 'failed') return c.status === 'fail';
+                    return true;
+                  });
+
+                  return (
+                    <>
+                      {checks.length > 0 && (
+                        <div className="sim-checks-basic" aria-label="Viability checks summary">
+                          <span className="sim-advanced-heading">
+                            Viability Checks ({passedCount}/7 Passed)
+                          </span>
+                          <ul className="sim-checks-list">
+                            {checks.map((c) => (
+                              <li key={c.code} className={`sim-check-row is-${c.status}`}>
+                                <span className="sim-check-name">
+                                  <span className="sim-check-num">#{c.code}</span> {c.label}
+                                </span>
+                                <span
+                                  className={`sim-check-badge is-${c.status}`}
+                                  aria-label={c.status === 'pass' ? 'Passed' : c.status === 'fail' ? 'Failed' : 'Not evaluated'}
+                                >
+                                  {c.status === 'pass' ? '✓' : c.status === 'fail' ? '✕' : '—'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {ev && (
+                        <button
+                          type="button"
+                          className={`hud-btn sim-advanced-toggle ${showSimAdvancedData ? 'is-active' : ''}`}
+                          aria-expanded={showSimAdvancedData}
+                          onClick={() => setShowSimAdvancedData((v) => !v)}
+                        >
+                          {showSimAdvancedData ? 'Hide Advanced Data ▴' : 'Show Advanced Data ▾'}
+                        </button>
+                      )}
+
+                      {showSimAdvancedData && ev && (
+                        <div className="sim-advanced-panel" role="region" aria-label="Advanced evaluation data">
+                          <div className="sim-advanced-section">
+                            <span className="sim-advanced-heading">What Was Checked</span>
+                            <div className="sim-check-filters" role="group" aria-label="Filter checks by result">
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'all' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('all')}
+                              >
+                                All ({checks.length})
+                              </button>
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'passed' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('passed')}
+                              >
+                                Passed ({passedCount})
+                              </button>
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'failed' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('failed')}
+                              >
+                                Failed ({failedCount})
+                              </button>
+                            </div>
+
+                            {filteredChecks.length === 0 ? (
+                              <p className="sim-check-empty">
+                                {checkFilter === 'failed'
+                                  ? 'No failed checks — all criteria passed.'
+                                  : 'No checks match this filter.'}
+                              </p>
+                            ) : (
+                              <div className="sim-check-details">
+                                {filteredChecks.map((c) => (
+                                  <div key={c.code} className={`sim-check-detail-card is-${c.status}`}>
+                                    <div className="sim-check-detail-head">
+                                      <span>
+                                        <strong>#{c.code}</strong> {c.label}
+                                      </span>
+                                      <span className={`sim-check-badge is-${c.status}`}>
+                                        {c.status === 'pass' ? '✓ Pass' : c.status === 'fail' ? '✕ Fail' : '— N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="sim-check-detail-meta">
+                                      <span>Rule: {c.criterion}</span>
+                                    </div>
+                                    <div className="sim-check-metrics">
+                                      {c.metrics.map((m) => (
+                                        <div key={m.label} className="sim-advanced-kv">
+                                          <span>{m.label}</span>
+                                          <strong>{m.value}</strong>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {c.status === 'fail' && (
+                                      <p className="sim-advanced-fail">{c.detail}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <RocketLandingView
                   failureMode={getFailureMode(stellarData, solarImpact)}
@@ -337,11 +511,14 @@ export function App() {
             {/* Top Header */}
             <header className="hud-card hud-header">
               <div className="title-block">
-                <h1>
-                  {activeTab === 'moon'
-                    ? 'Lunar Landing Site Navigator — Moon Explorer'
-                    : 'Lunar Landing Site Navigator — Orbit Simulator'}
-                </h1>
+                <div className="title-top-row">
+                  <h1>
+                    {activeTab === 'moon'
+                      ? 'Lunar Landing Site Navigator — Moon Explorer'
+                      : 'Lunar Landing Site Navigator — Orbit Simulator'}
+                  </h1>
+                  <span className="team-brand-pill">OSSM · One Safe Step For Mankind</span>
+                </div>
                 <p>
                   {formatUTCString(cal.year, cal.month, cal.day, cal.hour)} &bull; Sun-Earth-Moon
                   {apiOnline !== null && ` • ${apiOnline ? 'API Connected' : 'Local Ephemeris'}`}
@@ -350,60 +527,66 @@ export function App() {
 
               <div className="toolbar">
                 {activeTab === 'orbital' && (
-                  <>
+                  <div className="toolbar-dropdown-wrap" ref={viewOptionsRef}>
                     <button
                       type="button"
-                      className={`hud-btn ${showComparison ? 'is-active' : ''}`}
-                      aria-pressed={showComparison}
-                      onClick={() => setShowComparison((v) => !v)}
+                      className={`hud-btn ${viewOptionsOpen ? 'is-active' : ''}`}
+                      aria-expanded={viewOptionsOpen}
+                      onClick={() => setViewOptionsOpen((v) => !v)}
                     >
-                      Compare Sites
+                      View Options ▾
                     </button>
+                    {viewOptionsOpen && (
+                      <div className="hud-card toolbar-popover" role="region" aria-label="Simulator view options">
+                        <span className="sim-advanced-heading">Camera Mode</span>
+                        <div className="btn-group" role="group" aria-label="Camera mode">
+                          <button
+                            type="button"
+                            className={`hud-btn ${cameraMode === 'zenithal' ? 'is-active' : ''}`}
+                            onClick={() => setCameraMode('zenithal')}
+                          >
+                            Zenithal
+                          </button>
+                          <button
+                            type="button"
+                            className={`hud-btn ${cameraMode === 'heliocentric' ? 'is-active' : ''}`}
+                            onClick={() => setCameraMode('heliocentric')}
+                          >
+                            Heliocentric 3D
+                          </button>
+                          <button
+                            type="button"
+                            className={`hud-btn ${cameraMode === 'geocentric' ? 'is-active' : ''}`}
+                            onClick={() => setCameraMode('geocentric')}
+                          >
+                            Geocentric
+                          </button>
+                        </div>
 
-                    <div className="btn-group" role="group" aria-label="Camera mode">
-                      <button
-                        type="button"
-                        className={`hud-btn ${cameraMode === 'zenithal' ? 'is-active' : ''}`}
-                        onClick={() => setCameraMode('zenithal')}
-                      >
-                        Zenithal (Top)
-                      </button>
-                      <button
-                        type="button"
-                        className={`hud-btn ${cameraMode === 'heliocentric' ? 'is-active' : ''}`}
-                        onClick={() => setCameraMode('heliocentric')}
-                      >
-                        Heliocentric 3D
-                      </button>
-                      <button
-                        type="button"
-                        className={`hud-btn ${cameraMode === 'geocentric' ? 'is-active' : ''}`}
-                        onClick={() => setCameraMode('geocentric')}
-                      >
-                        Geocentric
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={`hud-btn ${showLabels ? 'is-active' : ''}`}
-                      aria-pressed={showLabels}
-                      onClick={() => setShowLabels((v) => !v)}
-                    >
-                      Labels
-                    </button>
-
-                    <button
-                      type="button"
-                      className={`hud-btn ${showAdvancedTelemetry ? 'is-active' : ''}`}
-                      aria-pressed={showAdvancedTelemetry}
-                      aria-expanded={showAdvancedTelemetry}
-                      aria-controls="advanced-telemetry-panel"
-                      onClick={() => setShowAdvancedTelemetry((v) => !v)}
-                    >
-                      {showAdvancedTelemetry ? 'Hide Telemetry' : 'Advanced View'}
-                    </button>
-                  </>
+                        <span className="sim-advanced-heading">Overlays</span>
+                        <div className="toolbar-popover-row">
+                          <button
+                            type="button"
+                            className={`hud-btn ${showLabels ? 'is-active' : ''}`}
+                            aria-pressed={showLabels}
+                            onClick={() => setShowLabels((v) => !v)}
+                          >
+                            3D Labels: {showLabels ? 'On' : 'Off'}
+                          </button>
+                          <button
+                            type="button"
+                            className={`hud-btn ${showAdvancedTelemetry ? 'is-active' : ''}`}
+                            aria-pressed={showAdvancedTelemetry}
+                            aria-expanded={showAdvancedTelemetry}
+                            aria-controls="advanced-telemetry-panel"
+                            onClick={() => setShowAdvancedTelemetry((v) => !v)}
+                          >
+                            {showAdvancedTelemetry ? 'Hide Telemetry' : 'Orbital Telemetry'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Primary Tab Switcher (always pinned to the right) */}
@@ -413,10 +596,7 @@ export function App() {
                     role="tab"
                     aria-selected={activeTab === 'moon'}
                     className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
-                    onClick={() => {
-                      setShowComparison(false);
-                      setActiveTab('moon');
-                    }}
+                    onClick={() => setActiveTab('moon')}
                   >
                     Lunar Globe
                   </button>
@@ -433,71 +613,23 @@ export function App() {
                     Orbital Simulator
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  className={`hud-btn about-btn ${showAboutModal ? 'is-active' : ''}`}
+                  onClick={() => setShowAboutModal(true)}
+                >
+                  About OSSM
+                </button>
               </div>
             </header>
-
-            {/* Side-by-Side Comparison Drawer (Orbital view only) */}
-            {activeTab === 'orbital' && showComparison && (
-              <section className="hud-card comparison-panel" aria-label="Lunar landing site comparison">
-                <div className="comparison-grid">
-                  {comparisonRows.map(({ site, impact }) => (
-                    <div
-                      key={site.id}
-                      className={`compare-card ${selectedSite?.id === site.id ? 'is-selected' : ''}`}
-                    >
-                      <div className="compare-card-head">
-                        <div>
-                          <span className="compare-program">{site.program}</span>
-                          <div>
-                            <strong>{site.name}</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="compare-metrics">
-                        <span>
-                          {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
-                        </span>
-                        {site.dateLabel && <span>Date: {site.dateLabel}</span>}
-                      </div>
-                      <div className="compare-metrics">
-                        <span>
-                          Sun: {impact.elevationDeg >= 0 ? '+' : ''}
-                          {impact.elevationDeg.toFixed(1)}&deg;
-                        </span>
-                        <span>
-                          {impact.earthVisible ? '📡 Earth visible' : 'No Earth view'} (
-                          {impact.earthElevationDeg >= 0 ? '+' : ''}
-                          {impact.earthElevationDeg.toFixed(1)}&deg;)
-                        </span>
-                      </div>
-                      <div className="compare-actions">
-                        <button
-                          type="button"
-                          className="hud-btn is-active"
-                          onClick={() => handleSelectSite(site)}
-                        >
-                          View in Orbit
-                        </button>
-                        <a
-                          className="quickmap-link"
-                          href={getQuickmapUrl(site.latDeg, site.lonDeg)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          LROC QuickMap ↗
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
             {/* Initial Tab: 3D Moon Explorer Overlay */}
             {activeTab === 'moon' ? (
               <>
                 <div className="moon-hero">
-                  <div className="moon-hero-eyebrow">01 — One Safe Step For Mankind (OSSM)</div>
+                  <div className="moon-hero-team">One Safe Step For Mankind (OSSM)</div>
+                  <div className="moon-hero-eyebrow">01 — Lunar Landing Site Navigator</div>
                   <h2>Moon.</h2>
                   <p>
                     Rotate the lunar globe and click any of the preloaded missions to open the zenithal
@@ -649,10 +781,10 @@ export function App() {
                 </div>
               </>
             ) : (
-              /* Orbital Simulator Tab: Solar Impact Box + Optional Advanced Telemetry + Date Controls */
-              <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
+              /* Orbital Simulator Tab: Top-Left Mission Selector + Bottom Date/Simulate Controls */
+              <>
                 {selectedSite && solarImpact && (
-                  <div className="hud-card solar-impact-card" role="status" aria-live="polite">
+                  <aside className="hud-card solar-impact-card orbital-mission-card" role="status" aria-live="polite">
                     <div className="solar-meta">
                       <strong>
                         {stellarData?.name ?? selectedSite.name} &middot;{' '}
@@ -667,30 +799,51 @@ export function App() {
                       {stellarError && <span>{stellarError}</span>}
                     </div>
 
-                    <div className="btn-group">
-                      {sites.map((site) => (
+                    <div className="orbital-mission-actions">
+                      <div className="mission-picker-wrap" ref={orbitalMissionMenuRef}>
                         <button
-                          key={site.id}
                           type="button"
-                          className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
-                          onClick={() => handleSelectSite(site)}
+                          className={`hud-btn ${orbitalMissionMenuOpen ? 'is-active' : ''}`}
+                          aria-expanded={orbitalMissionMenuOpen}
+                          onClick={() => setOrbitalMissionMenuOpen((v) => !v)}
                         >
-                          {site.name}
+                          Change Mission ▾
                         </button>
-                      ))}
-                    </div>
+                        {orbitalMissionMenuOpen && (
+                          <div className="hud-card orbital-mission-popover" role="menu" aria-label="Select landing mission">
+                            {sites.map((site) => (
+                              <button
+                                key={site.id}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={selectedSite.id === site.id}
+                                className={`hud-btn orbital-mission-option ${selectedSite.id === site.id ? 'is-active' : ''}`}
+                                onClick={() => {
+                                  handleSelectSite(site);
+                                  setOrbitalMissionMenuOpen(false);
+                                }}
+                              >
+                                <span>{site.name}</span>
+                                <small>{site.program}</small>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                    <a
-                      className="quickmap-link"
-                      href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LROC QuickMap ↗
-                    </a>
-                  </div>
+                      <a
+                        className="quickmap-link"
+                        href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        LROC QuickMap ↗
+                      </a>
+                    </div>
+                  </aside>
                 )}
 
+                <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
                 {showAdvancedTelemetry && (
                   <div id="advanced-telemetry-panel" className="hud-card telemetry-grid">
                     <div className="tel-cell">
@@ -734,36 +887,151 @@ export function App() {
                   </div>
                 )}
 
-                <div className="hud-card">
-                  <div className="controls-bar-layout">
-                    <div className="controls-left-col">
-                      <DateTimeControlBar
-                        year={cal.year}
-                        month={cal.month}
-                        day={cal.day}
-                        hour={cal.hour}
-                        onChangeUTC={setCalendarUTC}
-                      />
-                      <div className="hint-strip">
-                        <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
+                <div className="orbital-bottom-row">
+                  <div className="hud-card orbital-date-sim-card">
+                    <div className="controls-bar-layout">
+                      <div className="controls-left-col">
+                        <DateTimeControlBar
+                          year={cal.year}
+                          month={cal.month}
+                          day={cal.day}
+                          hour={cal.hour}
+                          onChangeUTC={setCalendarUTC}
+                        />
+                        <div className="hint-strip">
+                          <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <button
-                      type="button"
-                      className="simulate-cta"
-                      aria-pressed={isPlaying}
-                      onClick={handleToggleSimulate}
-                    >
-                      ▶ Simulate Launch
-                    </button>
+                      <button
+                        type="button"
+                        className="simulate-cta"
+                        aria-pressed={isPlaying}
+                        disabled={isStellarLoading}
+                        onClick={handleToggleSimulate}
+                      >
+                        {isStellarLoading ? '⏳ Calculating...' : '▶ Simulate Launch'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
+              </>
             )}
           </>
         )}
       </div>
+
+      {isStellarLoading && (
+        <div className="sim-loading-overlay" role="status" aria-live="polite" aria-label="Calculating landing viability">
+          <div className="sim-loading-card">
+            <div className="sim-rocket-stage" aria-hidden="true">
+              <div className="sim-orbit-ring" />
+              <div className="sim-rocket-wrap">
+                <svg className="sim-rocket-svg" viewBox="0 0 64 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M32 6C22 20 18 36 18 54H46C46 36 42 20 32 6Z"
+                    fill="#E2E8F0"
+                    stroke="#38BDF8"
+                    strokeWidth="2"
+                  />
+                  <path d="M32 6C27 14 24 21 22 28H42C40 21 37 14 32 6Z" fill="#38BDF8" />
+                  <circle cx="32" cy="39" r="5.5" fill="#0F172A" stroke="#7DD3FC" strokeWidth="2" />
+                  <path d="M18 44L9 59L18 56V44Z" fill="#0284C7" />
+                  <path d="M46 44L55 59L46 56V44Z" fill="#0284C7" />
+                  <rect x="25" y="54" width="14" height="5" rx="1.5" fill="#475569" />
+                  <path
+                    className="sim-rocket-flame-outer"
+                    d="M25 59C25 59 23 73 32 88C41 73 39 59 39 59H25Z"
+                    fill="#F97316"
+                  />
+                  <path
+                    className="sim-rocket-flame-inner"
+                    d="M28.5 59C28.5 59 27.5 69 32 79C36.5 69 35.5 59 35.5 59H28.5Z"
+                    fill="#FDE047"
+                  />
+                </svg>
+              </div>
+              <span className="sim-exhaust-dot d1" />
+              <span className="sim-exhaust-dot d2" />
+              <span className="sim-exhaust-dot d3" />
+            </div>
+
+            <span className="sim-loading-eyebrow">One Safe Step For Mankind</span>
+            <strong className="sim-loading-title">
+              {isBackendWakingUp || apiOnline === false
+                ? 'Deploying / Waking Up Backend...'
+                : 'Calculating Landing Viability...'}
+            </strong>
+            <span className="sim-loading-sub">
+              {isBackendWakingUp || apiOnline === false
+                ? `Render free instance sleeps after 15 min of inactivity. Starting up (${loadingElapsedSec}s) — simulation will launch automatically.`
+                : `${selectedSite ? `${selectedSite.name} • ` : ''}Ephemeris & LOLA Terrain Check${loadingElapsedSec > 0 ? ` (${loadingElapsedSec}s)` : ''}`}
+            </span>
+            {(isBackendWakingUp || apiOnline === false) && (
+              <span className="sim-loading-wakeup-badge">
+                Cold start in progress &bull; Please wait (~30–60s)
+              </span>
+            )}
+            <div className="sim-loading-bar" aria-hidden="true">
+              <div className="sim-loading-bar-fill" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAboutModal && (
+        <div
+          className="about-modal-backdrop"
+          role="presentation"
+          onClick={() => setShowAboutModal(false)}
+        >
+          <div
+            className="hud-card about-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-ossm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="about-modal-head">
+              <div>
+                <span className="team-brand-pill">OSSM · One Safe Step For Mankind</span>
+                <h2 id="about-ossm-title">Lunar Landing Site Navigator</h2>
+              </div>
+              <button
+                type="button"
+                className="hud-btn"
+                aria-label="Close About dialog"
+                onClick={() => setShowAboutModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="about-modal-copy">
+              Built by team <strong>One Safe Step For Mankind (OSSM)</strong> to evaluate lunar
+              landing site viability using real JPL Horizons / DE440s ephemerides, LOLA elevation
+              and slope models, solar illumination windows, and Earth line-of-sight communications.
+            </p>
+            <div className="about-modal-actions">
+              <a
+                className="quickmap-link"
+                href="https://github.com/AndresFerCervell/One-Safe-Step-For-Mankind"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub Repository ↗
+              </a>
+              <button
+                type="button"
+                className="hud-btn is-active"
+                onClick={() => setShowAboutModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

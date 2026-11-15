@@ -10,4 +10,10 @@ The datasets used and the calculation methodology are the team members' ideas. T
 
 AI was used for translation.
 
-AI was use to create 3D animations of the celestial bodies.
+### Use in frontend:
+
+The code of the backend was generated with the help of Antigravity and other skills.
+- Generated a preview of a 3D moon.
+- Generated a simulation of Lunar, Earth and Sun orbits.
+- Generated a User Interface using with design made by team members from figma sketch.
+- Added skills to use AI. AI wrote what those skills are in the README.
