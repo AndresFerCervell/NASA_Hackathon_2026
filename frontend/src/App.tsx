@@ -915,7 +915,7 @@ export function App() {
                         <div className="site-catalog-head">
                           <div>
                             <span className="compare-program">Candidate Catalog</span>
-                            <strong>South Pole &amp; Crater Sites</strong>
+                            <strong>Lunar Landing Candidates</strong>
                           </div>
                           <button
                             type="button"
