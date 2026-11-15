@@ -8,7 +8,7 @@ export interface GetDatosOptions {
   name?: string;
 }
 
-/** GET /api/{landing_site} **/
+/** GET /api/landing_site_viability **/
 export async function getDatos(
   landing_site: string,
   options: GetDatosOptions | Date = {}
@@ -18,6 +18,7 @@ export async function getDatos(
   const datetime = opts.fecha ?? new Date();
 
   const params = new URLSearchParams({
+    landing_site,
     fecha: datetime.toISOString(),
   });
   if (opts.lat !== undefined) params.set('lat', String(opts.lat));
@@ -25,7 +26,7 @@ export async function getDatos(
   if (opts.name) params.set('name', opts.name);
 
   const response = await fetch(
-    apiUrl(`/api/${encodeURIComponent(landing_site)}?${params.toString()}`),
+    apiUrl(`/api/landing_site_viability?${params.toString()}`),
     { method: 'GET' }
   );
   if (!response.ok) {

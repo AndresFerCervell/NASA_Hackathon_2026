@@ -1,61 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { getDatos, type GetDatosOptions } from '../services/getData';
 import type { StellarData } from '../model/datosEstelares';
 
 export function useData() {
   const [data, setData] = useState<StellarData | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeOptions, setActiveOptions] = useState<GetDatosOptions>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSeqRef = useRef(0);
 
-  useEffect(() => {
-    if (!activeId) {
+  const handlePickLandingSite = useCallback(
+    async (siteId: string, options: GetDatosOptions = {}): Promise<StellarData | null> => {
+      const seq = ++requestSeqRef.current;
+      setActiveId(siteId);
       setData(null);
       setError(null);
-      setIsLoading(false);
-      return;
-    }
+      setIsLoading(true);
 
-    let cancelled = false;
-    setData(null);
-    setError(null);
-    setIsLoading(true);
-
-    const fetchData = async () => {
       try {
-        const response = await getDatos(activeId, activeOptions);
-        if (!cancelled) {
+        const response = await getDatos(siteId, options);
+        if (requestSeqRef.current === seq) {
           setData(response);
         }
+        return response;
       } catch (err) {
-        if (!cancelled) {
+        if (requestSeqRef.current === seq) {
           console.error('Failed to fetch landing site data', err);
           setError('Could not load site data.');
         }
+        return null;
       } finally {
-        if (!cancelled) {
+        if (requestSeqRef.current === seq) {
           setIsLoading(false);
         }
       }
-    };
-
-    fetchData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId, activeOptions]);
-
-  const handlePickLandingSite = (siteId: string, options: GetDatosOptions = {}) => {
-    try {
-      setActiveOptions(options);
-      setActiveId(siteId);
-    } catch (err) {
-      console.error('Failed to select landing site:', err);
-      setError('Could not open landing site.');
-    }
-  };
+    },
+    []
+  );
 
   return {
     activeId,

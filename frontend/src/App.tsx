@@ -24,6 +24,7 @@ import { RocketLandingView } from './components/RocketLandingView';
 import { SolarSystemScene, type CameraMode } from './components/SolarSystemScene';
 import { checkBackendHealth } from './api/ephemerisClient';
 import { useData } from './hooks/useStellarData';
+import { buildViabilityChecks } from './model/datosEstelares';
 
 type ActiveTab = 'moon' | 'orbital';
 
@@ -62,6 +63,8 @@ export function App() {
   const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
+  const [showSimAdvancedData, setShowSimAdvancedData] = useState(false);
+  const [checkFilter, setCheckFilter] = useState<'all' | 'passed' | 'failed'>('all');
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -135,52 +138,41 @@ export function App() {
     return new Date(Date.UTC(c.year, c.month - 1, c.day, hr, min, 0));
   }, []);
 
-  const handleToggleSimulate = useCallback(() => {
-    setIsPlaying((prev) => {
-      const nextPlaying = !prev;
-      if (nextPlaying) {
-        setCameraMode('geocentric');
-        setMissionRunId((id) => id + 1);
-        if (selectedSite) {
-          handlePickLandingSite(selectedSite.id, {
-            fecha: jdToUtcDate(jdRef.current),
-            lat: selectedSite.latDeg,
-            lon: selectedSite.lonDeg,
-            name: selectedSite.name,
-          });
-        }
-      }
-      return nextPlaying;
-    });
-  }, [selectedSite, handlePickLandingSite, jdToUtcDate]);
+  const handleToggleSimulate = useCallback(async () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      return;
+    }
+    if (isStellarLoading) return;
 
-  const handleSelectSite = useCallback(
-    (site: LandingSite) => {
-      setSelectedSite(site);
-      let targetJD = jdRef.current;
-      if (site.missionDate) {
-        const { year, month, day, hour } = site.missionDate;
-        targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
-        jdRef.current = targetJD;
-        setDisplayJD(targetJD);
-      }
-      const targetCal = jdToCalendarUTC(targetJD);
-      const hr = Math.floor(targetCal.hour);
-      const min = Math.floor((targetCal.hour - hr) * 60);
-      const targetDate = new Date(
-        Date.UTC(targetCal.year, targetCal.month - 1, targetCal.day, hr, min, 0)
-      );
-      handlePickLandingSite(site.id, {
-        fecha: targetDate,
-        lat: site.latDeg,
-        lon: site.lonDeg,
-        name: site.name,
+    if (selectedSite) {
+      await handlePickLandingSite(selectedSite.id, {
+        fecha: jdToUtcDate(jdRef.current),
+        lat: selectedSite.latDeg,
+        lon: selectedSite.lonDeg,
+        name: selectedSite.name,
       });
-      setCameraMode('zenithal');
-      setActiveTab('orbital');
-    },
-    [handlePickLandingSite]
-  );
+    }
+
+    setCameraMode('geocentric');
+    setShowSimAdvancedData(false);
+    setCheckFilter('all');
+    setMissionRunId((id) => id + 1);
+    setIsPlaying(true);
+  }, [isPlaying, isStellarLoading, selectedSite, handlePickLandingSite, jdToUtcDate]);
+
+  const handleSelectSite = useCallback((site: LandingSite) => {
+    setSelectedSite(site);
+    let targetJD = jdRef.current;
+    if (site.missionDate) {
+      const { year, month, day, hour } = site.missionDate;
+      targetJD = clampOrWrapJD(computeJulianDate(year, month, day, hour));
+      jdRef.current = targetJD;
+      setDisplayJD(targetJD);
+    }
+    setCameraMode('zenithal');
+    setActiveTab('orbital');
+  }, []);
 
   // Keyboard navigation in orbital view
   useEffect(() => {
@@ -292,17 +284,12 @@ export function App() {
                   );
                 })()}
 
+                {/* Basic Simulation Data */}
                 <div className="solar-meta">
                   <strong>{stellarData?.name ?? selectedSite.name}</strong>
                   <span>
                     {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
                   </span>
-                  <span>
-                    Solar elevation: {solarImpact.elevationDeg >= 0 ? '+' : ''}
-                    {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
-                    {solarImpact.earthVisible ? 'Earth visible' : 'No Earth link'}
-                  </span>
-                  {isStellarLoading && <span>Computing viability...</span>}
                   {stellarError && <span>{stellarError}</span>}
                   {stellarData && (
                     <span>
@@ -313,6 +300,124 @@ export function App() {
                     </span>
                   )}
                 </div>
+
+                {(() => {
+                  const ev = stellarData?.evaluacion;
+                  const checks = ev ? buildViabilityChecks(ev) : [];
+                  const passedCount = checks.filter((c) => c.status === 'pass').length;
+                  const failedCount = checks.filter((c) => c.status === 'fail').length;
+                  const filteredChecks = checks.filter((c) => {
+                    if (checkFilter === 'passed') return c.status === 'pass';
+                    if (checkFilter === 'failed') return c.status === 'fail';
+                    return true;
+                  });
+
+                  return (
+                    <>
+                      {checks.length > 0 && (
+                        <div className="sim-checks-basic" aria-label="Viability checks summary">
+                          <span className="sim-advanced-heading">
+                            Viability Checks ({passedCount}/7 Passed)
+                          </span>
+                          <ul className="sim-checks-list">
+                            {checks.map((c) => (
+                              <li key={c.code} className={`sim-check-row is-${c.status}`}>
+                                <span className="sim-check-name">
+                                  <span className="sim-check-num">#{c.code}</span> {c.label}
+                                </span>
+                                <span
+                                  className={`sim-check-badge is-${c.status}`}
+                                  aria-label={c.status === 'pass' ? 'Passed' : c.status === 'fail' ? 'Failed' : 'Not evaluated'}
+                                >
+                                  {c.status === 'pass' ? '✓' : c.status === 'fail' ? '✕' : '—'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {ev && (
+                        <button
+                          type="button"
+                          className={`hud-btn sim-advanced-toggle ${showSimAdvancedData ? 'is-active' : ''}`}
+                          aria-expanded={showSimAdvancedData}
+                          onClick={() => setShowSimAdvancedData((v) => !v)}
+                        >
+                          {showSimAdvancedData ? 'Hide Advanced Data ▴' : 'Show Advanced Data ▾'}
+                        </button>
+                      )}
+
+                      {showSimAdvancedData && ev && (
+                        <div className="sim-advanced-panel" role="region" aria-label="Advanced evaluation data">
+                          <div className="sim-advanced-section">
+                            <span className="sim-advanced-heading">What Was Checked</span>
+                            <div className="sim-check-filters" role="group" aria-label="Filter checks by result">
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'all' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('all')}
+                              >
+                                All ({checks.length})
+                              </button>
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'passed' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('passed')}
+                              >
+                                Passed ({passedCount})
+                              </button>
+                              <button
+                                type="button"
+                                className={`hud-btn sim-filter-btn ${checkFilter === 'failed' ? 'is-active' : ''}`}
+                                onClick={() => setCheckFilter('failed')}
+                              >
+                                Failed ({failedCount})
+                              </button>
+                            </div>
+
+                            {filteredChecks.length === 0 ? (
+                              <p className="sim-check-empty">
+                                {checkFilter === 'failed'
+                                  ? 'No failed checks — all criteria passed.'
+                                  : 'No checks match this filter.'}
+                              </p>
+                            ) : (
+                              <div className="sim-check-details">
+                                {filteredChecks.map((c) => (
+                                  <div key={c.code} className={`sim-check-detail-card is-${c.status}`}>
+                                    <div className="sim-check-detail-head">
+                                      <span>
+                                        <strong>#{c.code}</strong> {c.label}
+                                      </span>
+                                      <span className={`sim-check-badge is-${c.status}`}>
+                                        {c.status === 'pass' ? '✓ Pass' : c.status === 'fail' ? '✕ Fail' : '— N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="sim-check-detail-meta">
+                                      <span>Rule: {c.criterion}</span>
+                                    </div>
+                                    <div className="sim-check-metrics">
+                                      {c.metrics.map((m) => (
+                                        <div key={m.label} className="sim-advanced-kv">
+                                          <span>{m.label}</span>
+                                          <strong>{m.value}</strong>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {c.status === 'fail' && (
+                                      <p className="sim-advanced-fail">{c.detail}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <RocketLandingView
                   failureMode={getFailureMode(stellarData, solarImpact)}
@@ -678,9 +783,10 @@ export function App() {
                       type="button"
                       className="simulate-cta"
                       aria-pressed={isPlaying}
+                      disabled={isStellarLoading}
                       onClick={handleToggleSimulate}
                     >
-                      ▶ Simulate Launch
+                      {isStellarLoading ? '⏳ Calculating...' : '▶ Simulate Launch'}
                     </button>
                   </div>
                 </div>

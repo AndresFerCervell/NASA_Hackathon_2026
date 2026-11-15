@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 3001 --reload",
+    "dev:backend": "node -e \"const fs=require('fs'),cp=require('child_process');const py=['backend/.venv/Scripts/python.exe','backend/.venv/bin/python'].find(p=>fs.existsSync(p))||'python';cp.spawn(py,['-m','uvicorn','app.main:app','--app-dir','backend','--host','0.0.0.0','--port','3001','--reload'],{stdio:'inherit'}).on('exit',c=>process.exit(c??0))\"",
     "build": "npm run build:backend && npm run build:frontend",
     "build:frontend": "npm run build --workspace=frontend",
     "build:backend": "python -m compileall -q backend/app backend/evaluar.py",
