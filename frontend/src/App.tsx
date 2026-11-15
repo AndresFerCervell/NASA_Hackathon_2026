@@ -795,6 +795,53 @@ export function App() {
           </>
         )}
       </div>
+
+      {isStellarLoading && (
+        <div className="sim-loading-overlay" role="status" aria-live="polite" aria-label="Calculating landing viability">
+          <div className="sim-loading-card">
+            <div className="sim-rocket-stage" aria-hidden="true">
+              <div className="sim-orbit-ring" />
+              <div className="sim-rocket-wrap">
+                <svg className="sim-rocket-svg" viewBox="0 0 64 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M32 6C22 20 18 36 18 54H46C46 36 42 20 32 6Z"
+                    fill="#E2E8F0"
+                    stroke="#38BDF8"
+                    strokeWidth="2"
+                  />
+                  <path d="M32 6C27 14 24 21 22 28H42C40 21 37 14 32 6Z" fill="#38BDF8" />
+                  <circle cx="32" cy="39" r="5.5" fill="#0F172A" stroke="#7DD3FC" strokeWidth="2" />
+                  <path d="M18 44L9 59L18 56V44Z" fill="#0284C7" />
+                  <path d="M46 44L55 59L46 56V44Z" fill="#0284C7" />
+                  <rect x="25" y="54" width="14" height="5" rx="1.5" fill="#475569" />
+                  <path
+                    className="sim-rocket-flame-outer"
+                    d="M25 59C25 59 23 73 32 88C41 73 39 59 39 59H25Z"
+                    fill="#F97316"
+                  />
+                  <path
+                    className="sim-rocket-flame-inner"
+                    d="M28.5 59C28.5 59 27.5 69 32 79C36.5 69 35.5 59 35.5 59H28.5Z"
+                    fill="#FDE047"
+                  />
+                </svg>
+              </div>
+              <span className="sim-exhaust-dot d1" />
+              <span className="sim-exhaust-dot d2" />
+              <span className="sim-exhaust-dot d3" />
+            </div>
+
+            <span className="sim-loading-eyebrow">One Safe Step For Mankind</span>
+            <strong className="sim-loading-title">Calculating Landing Viability...</strong>
+            <span className="sim-loading-sub">
+              {selectedSite ? `${selectedSite.name} • ` : ''}Ephemeris &amp; LOLA Terrain Check
+            </span>
+            <div className="sim-loading-bar" aria-hidden="true">
+              <div className="sim-loading-bar-fill" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
