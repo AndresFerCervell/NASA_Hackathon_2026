@@ -1,10 +1,11 @@
-"""LOLA -> elevación, pendiente máxima local y horizonte de 360 direcciones.
+"""LOLA -> elevación, pendiente máxima/P95 local y horizonte de 360 direcciones.
 
 Instalar: pip install numpy requests rasterio pyproj
 Ejecutar: python terreno_lola.py
 Salida automática: terreno_latitud_longitud_altura.json (altura en metros).
 Script autónomo: contiene todos los cálculos y no requiere notebooks ni otros scripts.
-Exporta latitud, longitud, elevacion_m, pendiente_deg, horizonte_360 y metadatos.
+Exporta latitud, longitud, elevacion_m, pendiente_deg (máximo), pendiente_p95_deg,
+horizonte_360 y metadatos. P95 usa interpolación lineal entre muestras ordenadas.
 La primera ejecución descarga el DEM global; las siguientes reutilizan la copia local.
 La pendiente usa recortes remotos de alta resolución o DEM_LOCAL.
 """
@@ -191,6 +192,7 @@ def _pendiente_30m(lat, lon, radio_m):
         raise ValueError('Recorte sin cobertura válida completa.')
     i,j = np.unravel_index(np.argmax(np.where(dentro,pendientes,-np.inf)),pendientes.shape)
     return float(pendientes[i,j]), {'fuente':url+'.lbl','radio_m':radio_m,
+        'pendiente_p95_deg': float(np.percentile(pendientes[dentro], 95, method='linear')),
         'pixel_norte_sur_m':dy,'pixel_este_oeste_m':dy*np.cos(np.deg2rad(lat)),
         'pixeles_evaluados':int(dentro.sum()),'latitud_maximo':float(lats[i,j]),
         'longitud_maximo':float(lons[i,j]),'metodo':'maximo Horn 3x3 en circulo geodesico',
@@ -198,7 +200,9 @@ def _pendiente_30m(lat, lon, radio_m):
 
 
 def pendiente_maxima_local(lat, lon, radio_m=200, dem=None):
-    """Horn 3x3 por píxel; máximo entre centros dentro del círculo geodésico.
+    """Horn 3x3 por píxel; devuelve máximo y metadatos con pendiente_p95_deg.
+
+    Ambos estadísticos usan los centros dentro del mismo círculo geodésico.
 
     Selección automática: 30 m entre 60°S y 60°N; 10 m entre 83°S y 90°S.
     Fuera de allí se necesita otro GeoTIFF lunar de alta resolución mediante dem.
@@ -258,6 +262,7 @@ def pendiente_maxima_local(lat, lon, radio_m=200, dem=None):
     seleccion = np.where(dentro, pendientes, -np.inf)
     i, j = np.unravel_index(np.argmax(seleccion), seleccion.shape)
     return float(pendientes[i,j]), {
+        "pendiente_p95_deg": float(np.percentile(pendientes[dentro], 95, method="linear")),
         "fuente": str(fuente), "radio_m": radio_m, "pixel_proyectado_m": [dx,dy],
         "pixeles_evaluados": int(dentro.sum()), "metodo": "maximo de pendientes Horn 3x3 en circulo geodesico",
         "latitud_maximo": float(lats[i,j]), "longitud_maximo": float(lons[i,j]),
@@ -290,6 +295,7 @@ def calcular_terreno(latitud=LATITUD, longitud=LONGITUD, ppd=PPD, radio_km=RADIO
     resultado = {
         "latitud": float(latitud), "longitud": float(longitud), "elevacion_m": h,
         "pendiente_deg": pendiente,
+        "pendiente_p95_deg": info_pendiente["pendiente_p95_deg"],
         "horizonte_360": horizonte(datos, escala, latitud, longitud, h, radio_km, paso).tolist(),
         "metadatos": {
             "fuente": BASE + f"ldem_{ppd}.lbl", "producto": f"LDEM_{ppd}",
@@ -327,4 +333,5 @@ if __name__ == "__main__":
                                  args.radio_pendiente_m, args.dem_local)
     destino_final = Path(str(args.salida).format(altura=resultado["elevacion_m"], **resultado)).resolve()
     print(f"Guardado: {destino_final}")
-    print(f"Elevación: {resultado['elevacion_m']:.2f} m; pendiente: {resultado['pendiente_deg']:.2f}°")
+    print(f"Elevación: {resultado['elevacion_m']:.2f} m; pendiente máxima: {resultado['pendiente_deg']:.2f}°; "
+          f"pendiente P95: {resultado['pendiente_p95_deg']:.2f}°")

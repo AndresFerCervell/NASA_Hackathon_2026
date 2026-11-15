@@ -1,382 +1,353 @@
+﻿"""Estimación de viabilidad por criterios geométricos, sin modelo de vehículo.
+
+El informe v2 acumula todos los fallos evaluables. Un dato ausente no equivale
+a un criterio superado: se registra y se devuelve la evaluación incompleta.
+La pendiente se evalúa con P95; para JSON antiguos sin ese campo se usa el
+máximo anterior y se declara la métrica utilizada en datos_tecnicos.
+"""
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
 import json
 import math
-from typing import Dict, Any, List
+from pathlib import Path
+
+
+# 2 y 7 describen datos, no un rechazo físico. Se conservan los códigos previos.
+DICCIONARIO_FALLOS = {
+    1: "Pendiente del terreno igual o superior al máximo permitido para aterrizar.",
+    2: "Datos obligatorios ausentes, inválidos o incompatibles con el sitio.",
+    3: "Obstrucción inicial por relieve o eclipse del Sol situado sobre el horizonte horizontal.",
+    4: "Visibilidad directa de la Tierra insuficiente en el aterrizaje.",
+    5: "Elevación solar inicial igual o inferior al mínimo configurado.",
+    6: "Horas de luz estimadas iguales o inferiores al requisito configurado.",
+    7: "Cobertura temporal insuficiente para evaluar el requisito de iluminación.",
+}
+CRITERIOS = (1, 3, 4, 5, 6)
+MODELO_ECLIPSE = "segmento_sol_puntual_tierra_esferica"
+
+
+def _json_seguro(valor):
+    """Los datos de procedencia inválidos tampoco deben producir NaN en JSON."""
+    if isinstance(valor, float) and not math.isfinite(valor):
+        return None
+    if isinstance(valor, dict):
+        return {k: _json_seguro(v) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [_json_seguro(v) for v in valor]
+    return valor
+
+
+def _numero(valor: object, nombre: str, minimo=-math.inf, maximo=math.inf) -> float:
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+        raise ValueError(f"{nombre}: se requiere un número finito.")
+    try:
+        numero = float(valor)
+    except OverflowError as error:
+        raise ValueError(f"{nombre}: número fuera de rango.") from error
+    if not math.isfinite(numero) or not minimo <= numero <= maximo:
+        raise ValueError(f"{nombre}: número no finito o fuera de [{minimo}, {maximo}].")
+    return numero
+
 
 class LandingSiteEvaluator:
-    """
-    Evaluador de viabilidad para sitios de alunizaje en el Polo Sur lunar.
-    Integra topografía local (LOLA) y series temporales de efemérides (JPL Horizons).
-    Incluye detección geométrica de eclipses terrestres.
-    """
-
     def __init__(
-        self,
-        max_pendiente_deg: float = 15.0,
+        self, max_pendiente_deg: float = 15.0,
         min_delta_sol_t0_deg: float = 0.5,
         min_delta_tierra_t0_deg: float = 0.0,
         min_angulo_solar_deg: float = 5.0,
-        min_horas_supervivencia: int = 120
+        min_horas_supervivencia: float | None = None,
+        *, min_porcentaje_luz: float = 50.0,
     ):
-        # Umbrales configurables según especificaciones del módulo lunar
-        self.max_pendiente_deg = max_pendiente_deg
-        self.min_delta_sol_t0_deg = min_delta_sol_t0_deg
-        self.min_delta_tierra_t0_deg = min_delta_tierra_t0_deg
-        self.min_angulo_solar_deg = min_angulo_solar_deg
-        self.min_horas_supervivencia = min_horas_supervivencia
+        self.max_pendiente_deg = _numero(max_pendiente_deg, "max_pendiente_deg", 0, 90)
+        self.min_delta_sol_t0_deg = _numero(min_delta_sol_t0_deg, "min_delta_sol_t0_deg", 0, 180)
+        self.min_delta_tierra_t0_deg = _numero(min_delta_tierra_t0_deg, "min_delta_tierra_t0_deg", 0, 180)
+        self.min_angulo_solar_deg = _numero(min_angulo_solar_deg, "min_angulo_solar_deg", -90, 90)
+        self.min_porcentaje_luz = _numero(min_porcentaje_luz, "min_porcentaje_luz", 0, 100)
+        # Compatibilidad con llamadas que configuran explícitamente horas absolutas.
+        self.min_horas_supervivencia = (
+            None if min_horas_supervivencia is None else
+            _numero(min_horas_supervivencia, "min_horas_supervivencia", 0))
 
     @staticmethod
-    def obtener_elevacion_horizonte(horizonte_360: List[float], azimut_deg: float) -> tuple[int, float]:
-        """
-        Redondea el azimut decimal al entero más cercano y aplica módulo 360
-        para evitar errores de desbordamiento (ej. 359.8° -> índice 0).
-        """
+    def obtener_elevacion_horizonte(horizonte_360: list[float], azimut_deg: float) -> tuple[int, float]:
+        """Acimut redondeado al grado más próximo, periódico en 360 grados."""
         if len(horizonte_360) != 360:
-            raise ValueError(f"El perfil del horizonte debe tener exactamente 360 valores (tiene {len(horizonte_360)}).")
-        
-        indice_azimut = int(round(azimut_deg)) % 360
-        return indice_azimut, float(horizonte_360[indice_azimut])
+            raise ValueError("El horizonte debe contener exactamente 360 valores.")
+        indice = int(round(_numero(azimut_deg, "azimut_deg"))) % 360
+        return indice, _numero(horizonte_360[indice], f"horizonte_360[{indice}]", -90, 90)
 
-    @staticmethod
-    def calcular_separacion_angular(az1_deg: float, el1_deg: float, az2_deg: float, el2_deg: float) -> float:
-        """
-        Calcula la distancia angular real entre dos cuerpos celestes en el cielo
-        usando la ley de los cosenos esféricos.
-        """
-        az1, el1 = math.radians(az1_deg), math.radians(el1_deg)
-        az2, el2 = math.radians(az2_deg), math.radians(el2_deg)
-        
-        # Ley de los cosenos esféricos
-        cos_d = (math.sin(el1) * math.sin(el2)) + (math.cos(el1) * math.cos(el2) * math.cos(az1 - az2))
-        
-        # Limitar entre -1 y 1 para evitar errores de precisión de coma flotante con math.acos
-        cos_d = max(-1.0, min(1.0, cos_d))
-        
-        return math.degrees(math.acos(cos_d))
+    def _margen(self, horizonte: list[float], elevacion: float, azimut: float | None) -> float:
+        if azimut is None:
+            # En cénit/nadir el acimut es irrelevante. Usamos el horizonte
+            # más restrictivo sin inventar una dirección norte.
+            return elevacion - (max(horizonte) if elevacion > 0 else min(horizonte))
+        return elevacion - self.obtener_elevacion_horizonte(horizonte, azimut)[1]
 
-    def evaluar_sitio(self, clave_sitio: str, datos_sitio: Dict[str, Any], ephemeris: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Ejecuta la secuencia de evaluación paso a paso. Si un paso crítico falla,
-        interrumpe la evaluación y devuelve el diagnóstico técnico detallado.
-        """
-        nombre = datos_sitio.get("nombre", clave_sitio)
-        lat = datos_sitio.get("lat")
-        lon = datos_sitio.get("lon")
-        pendiente = float(datos_sitio.get("pendiente_deg", 0.0))
-        horizonte_360 = datos_sitio.get("horizonte_360", [])
-        timeline = ephemeris.get("timeline", [])
-        t0_str = ephemeris.get("t0_aterrizaje", "Desconocido")
+    def evaluar_sitio(self, clave_sitio: str, datos_sitio: dict, ephemeris: dict) -> dict:
+        errores = []
+        fallos = []
+        evaluados = set()
+        metricas = {}
 
-        if not timeline:
-            raise ValueError("La serie temporal 'timeline' de efemérides está vacía.")
+        def leer(valor, campo, minimo=-math.inf, maximo=math.inf):
+            try:
+                return _numero(valor, campo, minimo, maximo)
+            except ValueError as error:
+                errores.append(str(error))
+                return None
 
-        # Estructura base del reporte de salida
-        reporteBase = {
-            "sitio_id": clave_sitio,
-            "nombre": nombre,
-            "coordenadas": {"lat": lat, "lon": lon},
-            "t0_aterrizaje": t0_str
-        }
+        def fallo(codigo, mensaje, datos=None):
+            fallos.append({"codigo": codigo, "descripcion": DICCIONARIO_FALLOS[codigo],
+                           "mensaje_tecnico": mensaje, "datos_tecnicos": datos or {}})
 
-        # =====================================================================
-        # PASO 1: Topografía y Terreno (Pendiente local)
-        # =====================================================================
-        if pendiente >= self.max_pendiente_deg:
-            return {
-                **reporteBase,
-                "viable": False,
-                "paso_fallido": "1. Topografía y Terreno",
-                "fallo": 1,
-                "motivo_rechazo": "Fallo mecánico: El módulo vuelca por exceso de inclinación.",
-                "mensaje_tecnico": (
-                    f"Fallo mecánico: Pendiente de {pendiente:.2f}° excede el límite "
-                    f"estructural de las patas ({self.max_pendiente_deg:.1f}°)."
-                ),
-                "datos_tecnicos": {
-                    "pendiente_evaluada_deg": round(pendiente, 2),
-                    "umbral_maximo_deg": self.max_pendiente_deg
-                }
-            }
+        if not isinstance(datos_sitio, dict):
+            errores.append("El sitio debe ser un objeto.")
+            datos_sitio = {}
+        if not isinstance(ephemeris, dict):
+            errores.append("ephemeris debe ser un objeto propio de este sitio.")
+            ephemeris = {}
+        lat = leer(datos_sitio.get("lat"), "lat", -90, 90)
+        lon = leer(datos_sitio.get("lon"), "lon", -180, 360)
+        altura = leer(datos_sitio.get("elevacion_m"), "elevacion_m")
+        # Los JSON anteriores solo contienen el máximo. Su uso se declara
+        # explícitamente; un P95 presente pero inválido nunca activa ese fallback.
+        campo_pendiente = "pendiente_p95_deg" if "pendiente_p95_deg" in datos_sitio else "pendiente_deg"
+        pendiente = leer(datos_sitio.get(campo_pendiente), campo_pendiente, 0, 90)
+        metricas["criterio_pendiente"] = campo_pendiente
+        if pendiente is not None:
+            evaluados.add(1)
+            metricas["pendiente_evaluada_deg"] = pendiente
+            if pendiente >= self.max_pendiente_deg:
+                fallo(1, f"{campo_pendiente} = {pendiente:g}°; se exige < {self.max_pendiente_deg:g}°.")
 
-        # Datos celestes en el instante del descenso (t0 -> índice 0)
-        estado_t0 = timeline[0]
-        sol_el_t0 = float(estado_t0["sol_elevacion_deg"])
-        sol_az_t0 = float(estado_t0["sol_azimut_deg"])
-        tierra_el_t0 = float(estado_t0["tierra_elevacion_deg"])
-        tierra_az_t0 = float(estado_t0["tierra_azimut_deg"])
+        horizonte = datos_sitio.get("horizonte_360")
+        if not isinstance(horizonte, list) or len(horizonte) != 360:
+            errores.append("horizonte_360 debe ser una lista de 360 ángulos en grados.")
+            horizonte = None
+        else:
+            horizonte = [leer(h, f"horizonte_360[{i}]", -90, 90) for i, h in enumerate(horizonte)]
+            if any(h is None for h in horizonte):
+                horizonte = None
 
-        # =====================================================================
-        # PASO 2 y 3: Perfil del Horizonte e Iluminación Inicial en Descenso (t0)
-        # =====================================================================
-        az_sol_idx, horiz_sol_t0 = self.obtener_elevacion_horizonte(horizonte_360, sol_az_t0)
-        delta_el_sol_t0 = sol_el_t0 - horiz_sol_t0
+        t0 = None
+        try:
+            fecha = datetime.fromisoformat(ephemeris.get("t0_aterrizaje", "").replace("Z", "+00:00"))
+            if fecha.tzinfo is None or fecha.utcoffset() is None:
+                raise ValueError("Falta zona horaria")
+            t0 = fecha.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        except (ValueError, TypeError, AttributeError, OverflowError):
+            errores.append("t0_aterrizaje debe ser una fecha ISO 8601 con zona horaria.")
 
-        if delta_el_sol_t0 <= self.min_delta_sol_t0_deg:
-            return {
-                **reporteBase,
-                "viable": False,
-                "paso_fallido": "3. Iluminación Inicial en Descenso",
-                "fallo": 3,
-                "motivo_rechazo": "Fallo de navegación: Módulo aterriza a oscuras.",
-                "mensaje_tecnico": (
-                    f"Fallo de navegación: Sol a {delta_el_sol_t0:+.2f}° respecto al relieve en azimut {az_sol_idx}° "
-                    f"(Sol: {sol_el_t0:.2f}°, Horizonte: {horiz_sol_t0:.2f}°); sensores ópticos sin visibilidad."
-                ),
-                "datos_tecnicos": {
-                    "delta_elevacion_sol_deg": round(delta_el_sol_t0, 3),
-                    "umbral_minimo_deg": self.min_delta_sol_t0_deg,
-                    "sol_elevacion_deg": round(sol_el_t0, 3),
-                    "sol_azimut_deg": round(sol_az_t0, 3),
-                    "azimut_horizonte_indexado": az_sol_idx,
-                    "horizonte_bloqueo_deg": round(horiz_sol_t0, 3)
-                }
-            }
+        # Los ángulos locales solo son aplicables al observador que los generó.
+        lugar = ephemeris.get("lugar")
+        if not isinstance(lugar, dict):
+            lugar = {}
+        lat_e = leer(lugar.get("latitud_deg"), "ephemeris.lugar.latitud_deg", -90, 90)
+        lon_e = leer(lugar.get("longitud_deg"), "ephemeris.lugar.longitud_deg", -180, 360)
+        altura_e = leer(lugar.get("altura_m"), "ephemeris.lugar.altura_m")
+        origen_valido = all(v is not None for v in (lat, lon, altura, lat_e, lon_e, altura_e))
+        if origen_valido:
+            origen_valido = (math.isclose(lat, lat_e, abs_tol=1e-8, rel_tol=0)
+                             and abs((lon - lon_e + 180) % 360 - 180) <= 1e-8
+                             and math.isclose(altura, altura_e, abs_tol=1e-3, rel_tol=0))
+            if not origen_valido:
+                errores.append("Las coordenadas/altura de ephemeris.lugar no coinciden con el sitio.")
+        unidades = ephemeris.get("unidades")
+        unidades_validas = isinstance(unidades, dict) and all(
+            unidades.get(k) == v for k, v in {"angulos": "deg", "tiempo": "h", "altura": "m"}.items())
+        if not unidades_validas:
+            errores.append("ephemeris.unidades debe declarar angulos=deg, tiempo=h y altura=m.")
+        modelo = ephemeris.get("modelo")
+        modelo_valido = isinstance(modelo, dict) and modelo.get("eclipse") == MODELO_ECLIPSE
+        if not modelo_valido:
+            errores.append(f"ephemeris.modelo.eclipse debe ser {MODELO_ECLIPSE}.")
+        fuente = ephemeris.get("fuente")
+        if not isinstance(fuente, str) or not fuente.strip():
+            errores.append("ephemeris.fuente es obligatoria.")
 
-        # =====================================================================
-        # PASO 4: Enlace de Radio Directo a la Tierra (LOS en t0)
-        # =====================================================================
-        az_tierra_idx, horiz_tierra_t0 = self.obtener_elevacion_horizonte(horizonte_360, tierra_az_t0)
-        delta_el_tierra_t0 = tierra_el_t0 - horiz_tierra_t0
+        duracion = leer(ephemeris.get("duracion_solicitada_horas"), "duracion_solicitada_horas", 0)
+        requisito_luz_horas = self.min_horas_supervivencia
+        if requisito_luz_horas is None and duracion is not None:
+            requisito_luz_horas = duracion * (self.min_porcentaje_luz / 100)
+        metricas["requisito_exclusivo_luz_horas"] = requisito_luz_horas
+        timeline = ephemeris.get("timeline")
+        if not isinstance(timeline, list) or not timeline:
+            errores.append("timeline debe ser una lista no vacía de muestras.")
+            timeline = []
+        filas = []
+        for i, punto in enumerate(timeline):
+            if not isinstance(punto, dict):
+                errores.append(f"timeline[{i}] debe ser un objeto.")
+                punto = {}
+            fila = {"hora_offset": leer(punto.get("hora_offset"), f"timeline[{i}].hora_offset", 0)}
+            for cuerpo in ("sol", "tierra"):
+                el = leer(punto.get(f"{cuerpo}_elevacion_deg"), f"timeline[{i}].{cuerpo}_elevacion_deg", -90, 90)
+                az = punto.get(f"{cuerpo}_azimut_deg")
+                vertical = el is not None and abs(el) == 90
+                if az is None and not vertical:
+                    errores.append(f"timeline[{i}].{cuerpo}_azimut_deg indefinido fuera de cénit/nadir.")
+                elif az is not None:
+                    az = leer(az, f"timeline[{i}].{cuerpo}_azimut_deg", 0, 360)
+                fila[f"{cuerpo}_el"] = el
+                fila[f"{cuerpo}_margen"] = (
+                    self._margen(horizonte, el, az)
+                    if horizonte is not None and el is not None and (az is not None or vertical) else None)
+            eclipse = punto.get("tierra_bloquea_sol")
+            if type(eclipse) is not bool:
+                errores.append(f"timeline[{i}].tierra_bloquea_sol debe ser booleano.")
+                eclipse = None
+            fila["eclipse"] = eclipse if modelo_valido else None
+            filas.append(fila)
 
-        if delta_el_tierra_t0 <= self.min_delta_tierra_t0_deg:
-            return {
-                **reporteBase,
-                "viable": False,
-                "paso_fallido": "4. Enlace de Radio (t0)",
-                "fallo": 4,
-                "motivo_rechazo": "Pérdida de señal (LOS) justo antes de tocar el suelo.",
-                "mensaje_tecnico": (
-                    f"Pérdida de telemetría (LOS): La Tierra está bloqueada ({delta_el_tierra_t0:+.2f}°) "
-                    f"por el relieve en azimut {az_tierra_idx}° (Tierra: {tierra_el_t0:.2f}°, Horizonte: {horiz_tierra_t0:.2f}°)."
-                ),
-                "datos_tecnicos": {
-                    "delta_elevacion_tierra_deg": round(delta_el_tierra_t0, 3),
-                    "umbral_minimo_deg": self.min_delta_tierra_t0_deg,
-                    "tierra_elevacion_deg": round(tierra_el_t0, 3),
-                    "tierra_azimut_deg": round(tierra_az_t0, 3),
-                    "azimut_horizonte_indexado": az_tierra_idx,
-                    "horizonte_bloqueo_deg": round(horiz_tierra_t0, 3)
-                }
-            }
+        tiempos = [fila["hora_offset"] for fila in filas]
+        tiempos_validos = bool(tiempos) and all(t is not None for t in tiempos)
+        if tiempos_validos:
+            tiempos_validos = tiempos[0] == 0 and all(b > a for a, b in zip(tiempos, tiempos[1:]))
+            if not tiempos_validos:
+                errores.append("timeline debe comenzar en cero y tener offsets estrictamente crecientes.")
+        if tiempos_validos and duracion is not None and tiempos[-1] > duracion + 1e-9:
+            errores.append("timeline sobrepasa la duración solicitada.")
+            tiempos_validos = False
+        if "paso_horas" in ephemeris:
+            paso = leer(ephemeris["paso_horas"], "paso_horas", 0)
+            if paso == 0:
+                errores.append("paso_horas debe ser positivo.")
+            if paso is None or paso == 0:
+                tiempos_validos = False
+            elif tiempos_validos and any(not math.isclose(b - a, paso, abs_tol=1e-9, rel_tol=0)
+                                        for a, b in zip(tiempos, tiempos[1:])):
+                errores.append("Faltan muestras o los offsets no coinciden con paso_horas.")
+                tiempos_validos = False
 
-        # =====================================================================
-        # PASO 5: Ángulo de Elevación Solar (Eficiencia energética en t0)
-        # =====================================================================
-        if sol_el_t0 <= self.min_angulo_solar_deg:
-            return {
-                **reporteBase,
-                "viable": False,
-                "paso_fallido": "5. Ángulo de Eficiencia Solar",
-                "fallo": 5,
-                "motivo_rechazo": "Rendimiento energético subóptimo; riesgo térmico.",
-                "mensaje_tecnico": (
-                    f"Rendimiento energético subóptimo en el aterrizaje: Elevación solar absoluta de {sol_el_t0:.2f}° "
-                    f"es inferior al umbral operativo de los paneles ({self.min_angulo_solar_deg:.1f}°)."
-                ),
-                "datos_tecnicos": {
-                    "sol_elevacion_absoluta_deg": round(sol_el_t0, 3),
-                    "umbral_eficiencia_solar_deg": self.min_angulo_solar_deg,
-                    "delta_elevacion_sol_deg": round(delta_el_sol_t0, 3)
-                }
-            }
+        geometria_valida = origen_valido and unidades_validas
+        inicial = filas[0] if filas and filas[0]["hora_offset"] == 0 and t0 is not None and geometria_valida else None
+        if inicial is not None:
+            sol, tierra = inicial["sol_margen"], inicial["tierra_margen"]
+            metricas.update(delta_luz_t0_deg=sol, delta_tierra_t0_deg=tierra,
+                            sol_elevacion_t0_deg=inicial["sol_el"], eclipse_t0=inicial["eclipse"])
+            elevacion_sol = inicial["sol_el"]
+            sobre_horizontal = elevacion_sol is not None and elevacion_sol > 0
+            # Un horizonte positivo aporta una obstrucción adicional al horizonte
+            # horizontal. La elevación baja por sí sola corresponde al código 5.
+            relieve = (sobre_horizontal and sol is not None and sol < elevacion_sol
+                       and sol <= self.min_delta_sol_t0_deg)
+            eclipse = sobre_horizontal and inicial["eclipse"] is True
+            sin_sol_sobre_horizontal = elevacion_sol is not None and elevacion_sol <= 0
+            fallo_luz_inicial = relieve or eclipse
+            if (fallo_luz_inicial or sin_sol_sobre_horizontal
+                    or (sol is not None and inicial["eclipse"] is not None)):
+                evaluados.add(3)
+                if fallo_luz_inicial:
+                    causas = [causa for causa, ocurre in (("relieve", relieve), ("eclipse", eclipse)) if ocurre]
+                    fallo(3, "Obstrucción inicial del Sol sobre el horizonte horizontal por " + " y ".join(causas) + ".",
+                          {"delta_elevacion_sol_deg": sol, "sol_elevacion_deg": elevacion_sol,
+                           "eclipse": inicial["eclipse"], "causas": causas})
+            if tierra is not None:
+                evaluados.add(4)
+                if tierra <= self.min_delta_tierra_t0_deg:
+                    fallo(4, f"Margen terrestre {tierra:g}°; se exige > {self.min_delta_tierra_t0_deg:g}°.")
+            if inicial["sol_el"] is not None:
+                evaluados.add(5)
+                if inicial["sol_el"] <= self.min_angulo_solar_deg:
+                    fallo(5, f"Elevación solar {inicial['sol_el']:g}°; se exige > {self.min_angulo_solar_deg:g}°.")
 
-        # =====================================================================
-        # PASO 6: Ventanas Operativas y Supervivencia (Serie temporal)
-        # =====================================================================
-        horas_totales_luz = 0
-        horas_totales_comunicacion = 0
-        horas_hasta_sunset = None
-        horas_hasta_earthset = None
-        horas_en_eclipse = 0 # Contador de horas perdidas por eclipse
+        cobertura = {"horas_solicitadas": duracion, "horas_observadas": tiempos[-1] if tiempos_validos else None,
+                     "completa": False, "suficiente_para_requisito_luz": False}
+        if tiempos_validos and duracion is not None:
+            cobertura["completa"] = math.isclose(tiempos[-1], duracion, abs_tol=1e-9, rel_tol=0)
+            cobertura["suficiente_para_requisito_luz"] = cobertura["completa"] and duracion > 0
+            if not cobertura["suficiente_para_requisito_luz"]:
+                fallo(7, "La serie no cubre toda la duración solicitada o esta no contiene un intervalo de tiempo positivo.",
+                      {"horas_observadas": tiempos[-1], "horas_solicitadas": duracion,
+                       "requisito_exclusivo_horas": requisito_luz_horas})
 
-        for punto in timeline:
-            hora_actual = int(punto["hora_offset"])
-            s_el = float(punto["sol_elevacion_deg"])
-            s_az = float(punto["sol_azimut_deg"])
-            t_el = float(punto["tierra_elevacion_deg"])
-            t_az = float(punto["tierra_azimut_deg"])
+        if tiempos_validos and geometria_valida and t0 is not None:
+            intervalos = [b - a for a, b in zip(tiempos, tiempos[1:])]
 
-            _, h_sol = self.obtener_elevacion_horizonte(horizonte_360, s_az)
-            _, h_tierra = self.obtener_elevacion_horizonte(horizonte_360, t_az)
+            def integrar(estados):
+                return math.fsum(dt for dt, estado in zip(intervalos, estados) if estado)
 
-            # Comprobación geométrica de Eclipse
-            separacion_tierra_sol = self.calcular_separacion_angular(s_az, s_el, t_az, t_el)
-            eclipse_activo = separacion_tierra_sol < 1.2
+            def primera_perdida(estados):
+                for i, estado in enumerate(estados):
+                    if not estado:
+                        return {"hora_detectada": tiempos[i],
+                                "intervalo_horas": [tiempos[max(0, i - 1)], tiempos[i]]}
+                return None
 
-            # Lógica de Luz: Sol sobre horizonte Y no tapado por la Tierra
-            hay_luz = (s_el - h_sol) > 0.0
+            metricas.update(horas_simuladas=tiempos[-1], paso_maximo_horas=max(intervalos, default=0))
+            if all(f["sol_margen"] is not None and f["eclipse"] is not None for f in filas):
+                luz = [f["sol_margen"] > 0 and not f["eclipse"] for f in filas]
+                eclipses = [f["sol_margen"] > 0 and f["eclipse"] for f in filas]
+                luz_sin_relieve = [f["sol_el"] > 0 and not f["eclipse"] for f in filas]
+                sombra_relieve = [f["sol_el"] > 0 and f["sol_margen"] <= 0 and not f["eclipse"] for f in filas]
+                metricas.update(horas_totales_luz=integrar(luz), horas_perdidas_por_eclipse=integrar(eclipses),
+                                horas_luz_sin_relieve=integrar(luz_sin_relieve),
+                                horas_perdidas_por_relieve=integrar(sombra_relieve),
+                                porcentaje_luz=integrar(luz) / duracion * 100 if duracion else None,
+                                primera_perdida_luz=primera_perdida(luz))
+                if cobertura["suficiente_para_requisito_luz"]:
+                    evaluados.add(6)
+                    if metricas["horas_totales_luz"] <= requisito_luz_horas:
+                        fallo(6, f"Luz estimada {metricas['horas_totales_luz']:g} h; se exige > {requisito_luz_horas:g} h.",
+                              {"horas_solicitadas": duracion, "requisito_exclusivo_horas": requisito_luz_horas,
+                               "porcentaje_luz": metricas["porcentaje_luz"]})
+            if all(f["tierra_margen"] is not None for f in filas):
+                radio = [f["tierra_margen"] > 0 for f in filas]
+                metricas.update(horas_totales_comunicacion=integrar(radio), primera_perdida_comunicacion=primera_perdida(radio))
 
-            if hay_luz and eclipse_activo:
-                hay_luz = False
-                horas_en_eclipse += 1
-
-            # Lógica de Radio
-            hay_radio = (t_el - h_tierra) > 0.0
-
-            if hay_luz:
-                horas_totales_luz += 1
-            elif horas_hasta_sunset is None:
-                horas_hasta_sunset = hora_actual
-
-            if hay_radio:
-                horas_totales_comunicacion += 1
-            elif horas_hasta_earthset is None:
-                horas_hasta_earthset = hora_actual
-
-        total_horas_simuladas = len(timeline)
-        if horas_hasta_sunset is None:
-            horas_hasta_sunset = total_horas_simuladas
-        if horas_hasta_earthset is None:
-            horas_hasta_earthset = total_horas_simuladas
-
-        if horas_totales_luz <= self.min_horas_supervivencia:
-            return {
-                **reporteBase,
-                "viable": False,
-                "paso_fallido": "6. Ventanas Operativas (Supervivencia)",
-                "fallo": 6,
-                "motivo_rechazo": "Fallo térmico/energético: Baterías agotadas por frío prematuro.",
-                "mensaje_tecnico": (
-                    f"Fallo térmico/energético: Solo {horas_totales_luz}h de luz previstas en las próximas "
-                    f"{total_horas_simuladas}h (mínimo requerido: >{self.min_horas_supervivencia}h); baterías agotadas."
-                ),
-                "datos_tecnicos": {
-                    "horas_totales_luz": horas_totales_luz,
-                    "horas_perdidas_por_eclipse": horas_en_eclipse,
-                    "umbral_minimo_horas_luz": self.min_horas_supervivencia,
-                    "horas_simuladas": total_horas_simuladas,
-                    "horas_continuas_hasta_primer_sunset": horas_hasta_sunset,
-                    "horas_totales_comunicacion": horas_totales_comunicacion
-                }
-            }
-
-        # =====================================================================
-        # ÉXITO: El sitio supera todas las validaciones
-        # =====================================================================
-        return {
-            **reporteBase,
-            "viable": True,
-            "paso_fallido": None,
-            "fallo": -1,
-            "motivo_rechazo": None,
-            "mensaje_tecnico": (
-                f"Sitio viable. Aterrizaje seguro (pendiente {pendiente:.1f}°) con {horas_totales_luz}h de luz "
-                f"y {horas_totales_comunicacion}h de enlace terrestre en los próximos {total_horas_simuladas // 24} días."
-            ),
-            "datos_tecnicos": {
-                "pendiente_evaluada_deg": round(pendiente, 2),
-                "delta_luz_t0_deg": round(delta_el_sol_t0, 3),
-                "delta_tierra_t0_deg": round(delta_el_tierra_t0, 3),
-                "sol_elevacion_t0_deg": round(sol_el_t0, 3),
-                "horas_totales_luz": horas_totales_luz,
-                "horas_perdidas_por_eclipse": horas_en_eclipse,
-                "horas_totales_comunicacion": horas_totales_comunicacion,
-                "horas_continuas_hasta_primer_sunset": horas_hasta_sunset,
-                "horas_continuas_hasta_primer_earthset": horas_hasta_earthset,
-                "horas_simuladas": total_horas_simuladas
-            }
-        }
-
-    def evaluar_dataset_completo(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa todos los sitios contenidos en el JSON de entrada frente al timeline de efemérides."""
-        sitios = payload.get("sitios", {})
-        ephemeris = payload.get("ephemeris", {})
-        resultados = {}
-
-        for clave_sitio, datos_sitio in sitios.items():
-            resultados[clave_sitio] = self.evaluar_sitio(clave_sitio, datos_sitio, ephemeris)
-
-        return resultados
-
-
-# =============================================================================
-# BLOQUE DE PRUEBA CON DATOS REALES (SHACKLETON) Y CASOS DE RECHAZO
-# =============================================================================
-if __name__ == "__main__":
-    horizonte_shackleton = [
-        21.017, 20.935, 20.916, 20.691, 20.658, 20.657, 20.629, 20.595, 20.432, 20.502,
-        20.528, 20.344, 20.41, 20.407, 20.306, 20.31, 20.223, 20.123, 20.221, 20.14,
-        20.132, 20.292, 20.263, 20.281, 20.26, 20.273, 20.321, 20.345, 20.419, 20.389,
-        20.478, 20.511, 20.499, 20.561, 20.571, 20.577, 20.581, 20.565, 20.568, 20.5,
-        20.541, 20.522, 20.533, 20.488, 20.461, 20.484, 20.503, 20.483, 20.484, 20.454,
-        20.539, 20.537, 20.523, 20.452, 20.487, 20.525, 20.644, 20.672, 20.703, 20.675,
-        20.674, 20.695, 20.707, 20.717, 20.733, 20.791, 20.831, 20.892, 20.993, 21.024,
-        21.064, 21.144, 21.172, 21.291, 21.369, 21.384, 21.441, 21.397, 21.536, 21.427,
-        21.443, 21.51, 21.482, 21.477, 21.652, 21.687, 21.625, 21.583, 21.615, 21.588,
-        21.596, 21.565, 21.553, 21.561, 21.545, 21.577, 21.64, 21.521, 21.572, 21.622,
-        21.514, 21.499, 21.532, 21.401, 21.446, 21.316, 21.437, 21.421, 21.294, 21.325,
-        21.276, 21.28, 21.219, 21.189, 21.203, 21.179, 21.157, 21.068, 21.022, 20.954,
-        20.906, 20.908, 20.897, 20.906, 20.847, 20.881, 20.845, 20.781, 20.79, 20.833,
-        20.848, 20.822, 20.837, 20.89, 20.92, 20.934, 20.924, 20.883, 20.851, 20.889,
-        20.873, 20.91, 20.881, 20.895, 20.863, 20.881, 20.83, 20.844, 20.828, 20.826,
-        20.816, 20.858, 20.85, 20.839, 20.833, 20.844, 20.869, 20.844, 20.831, 20.823,
-        20.886, 20.847, 20.701, 20.711, 20.689, 20.588, 20.657, 20.567, 20.615, 20.551,
-        20.638, 20.62, 20.559, 20.52, 20.656, 20.624, 20.618, 20.552, 20.619, 20.622,
-        20.665, 20.663, 20.7, 20.686, 20.715, 20.758, 20.826, 20.76, 20.829, 20.899,
-        21.005, 20.899, 21.018, 20.98, 21.068, 21.067, 21.181, 21.123, 21.088, 21.199,
-        21.177, 21.201, 21.25, 21.352, 21.321, 21.32, 21.355, 21.356, 21.323, 21.347,
-        21.378, 21.374, 21.372, 21.414, 21.34, 21.421, 21.455, 21.545, 21.498, 21.545,
-        21.561, 21.5, 21.511, 21.588, 21.537, 21.553, 21.558, 21.655, 21.68, 21.727,
-        21.761, 21.807, 21.817, 21.864, 21.8, 21.787, 21.766, 21.773, 21.814, 21.863,
-        21.79, 21.912, 21.895, 21.875, 21.847, 21.821, 21.779, 21.705, 21.692, 21.683,
-        21.717, 21.736, 21.59, 21.611, 21.7, 21.611, 21.674, 21.7, 21.82, 21.754,
-        21.863, 21.783, 21.744, 21.857, 21.83, 21.837, 21.847, 22.052, 22.116, 22.148,
-        22.24, 22.29, 22.329, 22.409, 22.254, 22.28, 22.322, 22.352, 22.211, 22.239,
-        22.303, 22.175, 22.193, 22.091, 22.161, 22.039, 22.059, 21.955, 21.886, 21.938,
-        21.872, 21.792, 21.743, 21.746, 21.689, 21.704, 21.69, 21.674, 21.561, 21.537,
-        21.542, 21.558, 21.461, 21.438, 21.35, 21.313, 21.316, 21.284, 21.235, 21.234,
-        21.169, 21.16, 21.096, 21.066, 21.051, 21.032, 21.03, 21.03, 21.097, 21.007,
-        21.008, 21.047, 20.971, 20.964, 21.021, 21.06, 21.121, 21.115, 21.119, 21.191,
-        21.301, 21.344, 21.335, 21.345, 21.377, 21.414, 21.421, 21.387, 21.429, 21.431,
-        21.534, 21.65, 21.539, 21.565, 21.609, 21.454, 21.471, 21.354, 21.359, 21.23,
-        21.272, 21.25, 21.216, 21.241, 21.171, 21.118, 21.067, 20.97, 21.066, 21.046
-    ]
-
-    # Generamos serie temporal de 336 horas
-    timeline_336h = []
-    for h in range(336):
-        timeline_336h.append({
-            "hora_offset": h,
-            "sol_elevacion_deg": 10.6988,
-            "sol_azimut_deg": (8.8067 + h * 0.5) % 360,
-            "tierra_elevacion_deg": 59.2242,
-            "tierra_azimut_deg": 72.1953
+        if errores:
+            fallo(2, "No se pueden evaluar todos los criterios con los datos recibidos.", {"errores": errores})
+        fallos.sort(key=lambda f: f["codigo"])
+        codigos = [f["codigo"] for f in fallos]
+        rechazos = any(c in CRITERIOS for c in codigos)
+        completa = not errores and cobertura["suficiente_para_requisito_luz"] and set(CRITERIOS) == evaluados
+        viable = False if rechazos else True if completa else None
+        estado = "no_viable" if rechazos else "viable" if completa else "datos_insuficientes"
+        return _json_seguro({
+            "version_contrato": 2, "sitio_id": clave_sitio, "nombre": datos_sitio.get("nombre", clave_sitio),
+            "coordenadas": {"lat": lat, "lon": lon}, "t0_aterrizaje": t0,
+            "viable": viable, "estado": estado, "evaluacion_completa": completa,
+            "fallos": codigos, "detalle_fallos": fallos, "diccionario_fallos": DICCIONARIO_FALLOS.copy(),
+            "criterios_no_evaluados": sorted(set(CRITERIOS) - evaluados),
+            "mensaje_tecnico": {
+                "viable": "El sitio supera los criterios configurados de viabilidad estimada.",
+                "no_viable": "El sitio incumple uno o varios criterios configurados.",
+                "datos_insuficientes": "No hay datos suficientes para decidir la viabilidad.",
+            }[estado],
+            "parametros_mision": vars(self).copy(), "cobertura_temporal": cobertura,
+            "datos_tecnicos": metricas,
+            "modelo": {"alcance": "estimacion geometrica; sin simulacion de descenso ni balance termico/energetico",
+                       "eclipse": MODELO_ECLIPSE,
+                       "integracion": "estado de la muestra izquierda en [t_i, t_i+1); ultimo extremo sin duracion",
+                       "eventos": "primera muestra de perdida y su intervalo; null si no se observa",
+                       "horizonte": "acimut al grado mas proximo; no resuelve obstaculos subpixel",
+                       "comunicacion": "visibilidad del centro terrestre; no garantiza enlace con una estacion"},
+            "metadatos_terreno": datos_sitio.get("metadatos", {}),
+            "procedencia_efemerides": {k: ephemeris.get(k) for k in ("fuente", "lugar", "unidades", "modelo", "decimales_angulos")},
         })
 
-    datos_entrada = {
-        "sitios": {
-            "shackleton_rim": {
-                "nombre": "Borde Cráter Shackleton (Polo Sur)",
-                "lat": -89.65,
-                "lon": 129.2,
-                "elevacion_m": -2762.94,
-                "pendiente_deg": 5.1,
-                "horizonte_360": horizonte_shackleton
-            },
-            "ladera_escarpada": {
-                "nombre": "Pared Interior Shackleton",
-                "lat": -89.70,
-                "lon": 130.0,
-                "elevacion_m": -3100.0,
-                "pendiente_deg": 22.0,
-                "horizonte_360": [5.0] * 360
-            },
-            "apollo_11": {
-                "nombre": "Tranquility Base (Apolo 11 - Comparación)",
-                "lat": 0.674,
-                "lon": 23.473,
-                "elevacion_m": -1850.0,
-                "pendiente_deg": 1.8,
-                "horizonte_360": [0.1] * 360
-            }
-        },
-        "ephemeris": {
-            "t0_aterrizaje": "2026-11-14T12:00:00Z",
-            "timeline": timeline_336h
-        }
-    }
+    def evaluar_dataset_completo(self, payload: dict) -> dict:
+        """Una serie propia por sitio; la forma antigua solo admite un sitio."""
+        if not isinstance(payload, dict) or not isinstance(payload.get("sitios"), dict) or not payload["sitios"]:
+            raise ValueError("El payload debe contener un diccionario 'sitios' no vacío.")
+        sitios = payload["sitios"]
+        por_sitio = payload.get("ephemeris_por_sitio")
+        if por_sitio is not None and not isinstance(por_sitio, dict):
+            raise ValueError("ephemeris_por_sitio debe ser un diccionario indexado por sitio.")
+        return {clave: self.evaluar_sitio(
+            clave, sitio, por_sitio.get(clave) if por_sitio is not None else
+            payload.get("ephemeris") if len(sitios) == 1 else None,
+        ) for clave, sitio in sitios.items()}
 
-    # Instanciar evaluador (umbral de eficiencia solar configurado a 5.0°)
-    evaluador = LandingSiteEvaluator(min_angulo_solar_deg=5.0)
-    resultados = evaluador.evaluar_dataset_completo(datos_entrada)
 
-    print(json.dumps(resultados, indent=2, ensure_ascii=False))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("entrada", type=Path, help="JSON combinado con sitios y efemérides propias de cada sitio")
+    parser.add_argument("--min-porcentaje-luz", type=float, default=50.0,
+                        help="Porcentaje de las horas solicitadas que debe superarse con luz (0 a 100)")
+    args = parser.parse_args()
+    resultado = LandingSiteEvaluator(min_porcentaje_luz=args.min_porcentaje_luz).evaluar_dataset_completo(
+        json.loads(args.entrada.read_text(encoding="utf-8")))
+    print(json.dumps(resultado, indent=2, ensure_ascii=False, allow_nan=False))

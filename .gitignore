@@ -56,3 +56,6 @@ __pycache__
 
 # scripts
 .build_lola_notebook.py
+
+# Local backend review and agent instructions
+/backend/INSTRUCCIONES_AGENTES_BACKEND_LOCAL.md

@@ -17,7 +17,7 @@ RAIZ_REPO = Path(__file__).resolve().parent
 if str(RAIZ_REPO) not in sys.path:
     sys.path.insert(0, str(RAIZ_REPO))
 
-from app.astronomy.lunar_geometry import calcular_desde_lugar
+from app.astronomy.lunar_geometry import RADIO_TIERRA_KM, calcular_desde_lugar
 # ==============================================================================
 # PARÁMETROS DE CONFIGURACIÓN (modifica estos valores antes de ejecutar)
 # ==============================================================================
@@ -70,20 +70,37 @@ def generar_efemerides(
     timeline = []
     for _, fila in tabla.iterrows():
         horas = float(fila["t_segundos"]) / 3600.0
-        hora_offset: int | float = int(round(horas)) if np.isclose(horas, round(horas)) else round(horas, decimales)
         timeline.append(
             {
-                "hora_offset": hora_offset,
+                # El redondeo de presentación no debe modificar los intervalos.
+                "hora_offset": horas,
                 "sol_elevacion_deg": _redondear_angulo(fila["elevacion_sol_deg"], decimales),
                 "sol_azimut_deg": _redondear_angulo(fila["acimut_sol_deg"], decimales),
                 "tierra_elevacion_deg": _redondear_angulo(fila["elevacion_tierra_deg"], decimales),
                 "tierra_azimut_deg": _redondear_angulo(fila["acimut_tierra_deg"], decimales),
+                "tierra_bloquea_sol": bool(fila["tierra_bloquea_sol"]),
             }
         )
 
     resultado = {
         "ephemeris": {
             "t0_aterrizaje": t0_iso,
+            "lugar": {
+                "latitud_deg": float(latitud_deg),
+                "longitud_deg": float(longitud_deg),
+                "altura_m": float(altura_m),
+            },
+            "fuente": "JPL Horizons",
+            "unidades": {"angulos": "deg", "tiempo": "h", "altura": "m"},
+            "modelo": {
+                "eclipse": "segmento_sol_puntual_tierra_esferica",
+                "radio_tierra_km": RADIO_TIERRA_KM,
+                "posiciones": "geometricas instantaneas ICRF, VEC_CORR=NONE",
+                "datum_altura": "superficie de referencia lunar de Horizons",
+            },
+            "duracion_solicitada_horas": duracion.total_seconds() / 3600.0,
+            "paso_horas": paso.total_seconds() / 3600.0,
+            "decimales_angulos": decimales,
             "timeline": timeline,
         }
     }
@@ -92,7 +109,7 @@ def generar_efemerides(
         ruta = Path(salida)
         ruta.parent.mkdir(parents=True, exist_ok=True)
         ruta.write_text(
-            json.dumps(resultado, indent=2, ensure_ascii=False) + "\n",
+            json.dumps(resultado, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
             encoding="utf-8",
         )
 
