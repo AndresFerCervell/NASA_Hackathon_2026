@@ -1,4 +1,4 @@
-# Lunar Landing Site Navigator
+# One Safe Step for Mankind
 
 ## Official NASA data used in this project
 
