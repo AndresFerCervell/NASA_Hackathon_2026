@@ -16,7 +16,7 @@ interface MoonExplorerSceneProps {
 
 const MOON_RADIUS = 1.72;
 
-function TargetLockPulse({ position }: { position: THREE.Vector3 }) {
+function TargetLockPulse({ position, scale = 1 }: { position: THREE.Vector3; scale?: number }) {
   const ring1Ref = useRef<THREE.Mesh | null>(null);
   const ring2Ref = useRef<THREE.Mesh | null>(null);
   const coreRef = useRef<THREE.Mesh | null>(null);
@@ -46,18 +46,20 @@ function TargetLockPulse({ position }: { position: THREE.Vector3 }) {
 
   return (
     <Billboard position={position}>
-      <mesh ref={coreRef}>
-        <ringGeometry args={[0.11, 0.155, 32]} />
-        <meshBasicMaterial color="#ff3b3b" transparent opacity={0.95} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh ref={ring1Ref}>
-        <ringGeometry args={[0.11, 0.14, 32]} />
-        <meshBasicMaterial color="#ef4444" transparent opacity={0.9} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh ref={ring2Ref}>
-        <ringGeometry args={[0.11, 0.14, 32]} />
-        <meshBasicMaterial color="#f87171" transparent opacity={0.9} side={THREE.DoubleSide} />
-      </mesh>
+      <group scale={scale}>
+        <mesh ref={coreRef}>
+          <ringGeometry args={[0.11, 0.155, 32]} />
+          <meshBasicMaterial color="#ff3b3b" transparent opacity={0.95} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh ref={ring1Ref}>
+          <ringGeometry args={[0.11, 0.14, 32]} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.9} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh ref={ring2Ref}>
+          <ringGeometry args={[0.11, 0.14, 32]} />
+          <meshBasicMaterial color="#f87171" transparent opacity={0.9} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </Billboard>
   );
 }
@@ -296,23 +298,27 @@ export function MoonExplorerScene({
               document.body.style.cursor = 'auto';
             };
 
+            const sphereRadius = isPolarCluster ? 0.018 : 0.075;
+            const ringInner = isPolarCluster ? 0.026 : 0.1;
+            const ringOuter = isPolarCluster ? 0.036 : 0.135;
+
             return (
               <group key={site.id}>
                 <mesh
                   position={pos}
                   scale={isLaunching ? 1.65 : isHovered || isSelected ? 1.45 : 1}
                 >
-                  <sphereGeometry args={[0.075, 20, 20]} />
+                  <sphereGeometry args={[sphereRadius, 20, 20]} />
                   <meshBasicMaterial color={isLaunching ? '#ff3b3b' : isHovered ? '#ffffff' : pinColor} />
                 </mesh>
 
                 {isLaunching ? (
-                  <TargetLockPulse position={pos} />
+                  <TargetLockPulse position={pos} scale={isPolarCluster ? 0.45 : 1} />
                 ) : (
                   /* Outer halo ring */
                   <Billboard position={pos}>
                     <mesh>
-                      <ringGeometry args={[0.1, 0.135, 28]} />
+                      <ringGeometry args={[ringInner, ringOuter, 28]} />
                       <meshBasicMaterial
                         color={pinColor}
                         transparent
