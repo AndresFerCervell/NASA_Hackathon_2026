@@ -217,27 +217,6 @@ export function DateTimeControlBar({
     return cells;
   }, [viewYear, viewMonth]);
 
-  // Sliders always overwrite the text fields & clear errors
-  const handleDaySliderChange = (nextDay: number) => {
-    setFocusedField(null);
-    setDateError(null);
-    setTimeError(null);
-    setDateDraft(`${String(localCal.year).padStart(4, '0')}-${pad2(localCal.month)}-${pad2(nextDay)}`);
-    setTimeDraft(formattedTime);
-    emitLocalChange(localCal.year, localCal.month, nextDay, localCal.totalMinutes / 60);
-  };
-
-  const handleTimeSliderChange = (nextTotalMinutes: number) => {
-    const hrs = Math.floor(nextTotalMinutes / 60);
-    const mins = nextTotalMinutes % 60;
-    setFocusedField(null);
-    setDateError(null);
-    setTimeError(null);
-    setDateDraft(formattedDate);
-    setTimeDraft(`${pad2(hrs)}:${pad2(mins)}`);
-    emitLocalChange(localCal.year, localCal.month, clampedDay, nextTotalMinutes / 60);
-  };
-
   const handleDateInputChange = (val: string) => {
     setDateDraft(val);
     setDateError(null);
@@ -293,44 +272,6 @@ export function DateTimeControlBar({
 
   return (
     <div className="date-controls-row">
-      {/* Day Slider */}
-      <div className="control-cell">
-        <div className="control-top">
-          <label htmlFor="ctrl-day">Day of Month</label>
-          <span className="control-val">{clampedDay}</span>
-        </div>
-        <input
-          id="ctrl-day"
-          name="day"
-          type="range"
-          min={1}
-          max={maxDays}
-          step={1}
-          value={clampedDay}
-          onChange={(e) => handleDaySliderChange(parseInt(e.target.value, 10))}
-        />
-      </div>
-
-      {/* Time Slider (Hours & Minutes) */}
-      <div className="control-cell">
-        <div className="control-top">
-          <label htmlFor="ctrl-hour">Time ({activeTz.shortLabel})</label>
-          <span className="control-val">
-            {localCal.hours}h {pad2(localCal.minutes)}m
-          </span>
-        </div>
-        <input
-          id="ctrl-hour"
-          name="timeMinutes"
-          type="range"
-          min={0}
-          max={1439}
-          step={1}
-          value={localCal.totalMinutes}
-          onChange={(e) => handleTimeSliderChange(parseInt(e.target.value, 10))}
-        />
-      </div>
-
       {/* Date Input + Calendar Trigger */}
       <div className="control-cell datetime-picker-cell" ref={calendarWrapRef}>
         <div className="control-top">

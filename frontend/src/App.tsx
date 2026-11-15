@@ -692,46 +692,6 @@ export function App() {
             ) : (
               /* Orbital Simulator Tab: Solar Impact Box + Optional Advanced Telemetry + Date Controls */
               <section className="hud-bottom" aria-label="Ephemeris telemetry and controls">
-                {selectedSite && solarImpact && (
-                  <div className="hud-card solar-impact-card" role="status" aria-live="polite">
-                    <div className="solar-meta">
-                      <strong>
-                        {stellarData?.name ?? selectedSite.name} &middot;{' '}
-                        {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
-                      </strong>
-                      <span>
-                        Solar elevation: {solarImpact.elevationDeg >= 0 ? '+' : ''}
-                        {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
-                        {solarImpact.earthVisible ? 'Earth visible (Comms OK)' : 'No direct Earth view'}
-                      </span>
-                      {isStellarLoading && <span>Loading site telemetry...</span>}
-                      {stellarError && <span>{stellarError}</span>}
-                    </div>
-
-                    <div className="btn-group">
-                      {sites.map((site) => (
-                        <button
-                          key={site.id}
-                          type="button"
-                          className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
-                          onClick={() => handleSelectSite(site)}
-                        >
-                          {site.name}
-                        </button>
-                      ))}
-                    </div>
-
-                    <a
-                      className="quickmap-link"
-                      href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LROC QuickMap ↗
-                    </a>
-                  </div>
-                )}
-
                 {showAdvancedTelemetry && (
                   <div id="advanced-telemetry-panel" className="hud-card telemetry-grid">
                     <div className="tel-cell">
@@ -775,30 +735,72 @@ export function App() {
                   </div>
                 )}
 
-                <div className="hud-card">
-                  <div className="controls-bar-layout">
-                    <div className="controls-left-col">
-                      <DateTimeControlBar
-                        year={cal.year}
-                        month={cal.month}
-                        day={cal.day}
-                        hour={cal.hour}
-                        onChangeUTC={setCalendarUTC}
-                      />
-                      <div className="hint-strip">
-                        <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
+                <div className="orbital-bottom-row">
+                  {selectedSite && solarImpact && (
+                    <div className="hud-card solar-impact-card orbital-mission-card" role="status" aria-live="polite">
+                      <div className="solar-meta">
+                        <strong>
+                          {stellarData?.name ?? selectedSite.name} &middot;{' '}
+                          {formatDms(selectedSite.latDeg, true)}, {formatDms(selectedSite.lonDeg, false)}
+                        </strong>
+                        <span>
+                          Solar elevation: {solarImpact.elevationDeg >= 0 ? '+' : ''}
+                          {solarImpact.elevationDeg.toFixed(1)}&deg; &bull;{' '}
+                          {solarImpact.earthVisible ? 'Earth visible (Comms OK)' : 'No direct Earth view'}
+                        </span>
+                        {isStellarLoading && <span>Loading site telemetry...</span>}
+                        {stellarError && <span>{stellarError}</span>}
                       </div>
-                    </div>
 
-                    <button
-                      type="button"
-                      className="simulate-cta"
-                      aria-pressed={isPlaying}
-                      disabled={isStellarLoading}
-                      onClick={handleToggleSimulate}
-                    >
-                      {isStellarLoading ? '⏳ Calculating...' : '▶ Simulate Launch'}
-                    </button>
+                      <div className="btn-group">
+                        {sites.map((site) => (
+                          <button
+                            key={site.id}
+                            type="button"
+                            className={`hud-btn ${selectedSite.id === site.id ? 'is-active' : ''}`}
+                            onClick={() => handleSelectSite(site)}
+                          >
+                            {site.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      <a
+                        className="quickmap-link"
+                        href={getQuickmapUrl(selectedSite.latDeg, selectedSite.lonDeg)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        LROC QuickMap ↗
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="hud-card orbital-date-sim-card">
+                    <div className="controls-bar-layout">
+                      <div className="controls-left-col">
+                        <DateTimeControlBar
+                          year={cal.year}
+                          month={cal.month}
+                          day={cal.day}
+                          hour={cal.hour}
+                          onChangeUTC={setCalendarUTC}
+                        />
+                        <div className="hint-strip">
+                          <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="simulate-cta"
+                        aria-pressed={isPlaying}
+                        disabled={isStellarLoading}
+                        onClick={handleToggleSimulate}
+                      >
+                        {isStellarLoading ? '⏳ Calculating...' : '▶ Simulate Launch'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
