@@ -59,18 +59,49 @@ export function SolarSystemScene({
   const lastUiSyncTimeRef = useRef(0);
 
   // Shared cached textures via Drei useTexture (do not dispose cache-owned entries)
-  const { earthMap, moonMap, sunMap } = useTexture({
+  const { earthMap, moonMap, sunMap, starfieldMap } = useTexture({
     earthMap: '/textures/earth.jpg',
     moonMap: '/textures/moon.jpg',
     sunMap: '/textures/sun.jpg',
+    starfieldMap: '/textures/stars_milky_way.jpg',
   });
   const sunGlowTexture = useMemo(() => createSunGlowTexture(), []);
+
+  const earthAtmosphereMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color('#5bb4ff') },
+        },
+        vertexShader: `
+          varying vec3 vNormal;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor;
+          varying vec3 vNormal;
+          void main() {
+            float intensity = pow(0.68 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.2);
+            gl_FragColor = vec4(uColor, clamp(intensity * 0.85, 0.0, 0.75));
+          }
+        `,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide,
+        transparent: true,
+        depthWrite: false,
+      }),
+    []
+  );
 
   useEffect(() => {
     return () => {
       sunGlowTexture.dispose();
+      earthAtmosphereMaterial.dispose();
     };
-  }, [sunGlowTexture]);
+  }, [sunGlowTexture, earthAtmosphereMaterial]);
 
   // Dynamic Sun->Earth and Earth->Moon radius vector lines (updated imperatively in useFrame)
   const sunEarthLineObj = useMemo(() => {
@@ -250,7 +281,16 @@ export function SolarSystemScene({
   return (
     <>
       <color attach="background" args={['#050814']} />
-      <Stars radius={120} depth={50} count={3500} factor={3.5} saturation={0.2} fade speed={0.4} />
+      <mesh>
+        <sphereGeometry args={[150, 48, 32]} />
+        <meshBasicMaterial
+          map={starfieldMap}
+          side={THREE.BackSide}
+          color="#94a8cb"
+          depthWrite={false}
+        />
+      </mesh>
+      <Stars radius={120} depth={50} count={2200} factor={2.6} saturation={0.15} fade speed={0.25} />
 
       <ambientLight intensity={0.14} />
       <pointLight position={[0, 0, 0]} intensity={3.4} decay={0} color="#fff5dc" />
@@ -387,6 +427,10 @@ export function SolarSystemScene({
                 roughness={0.75}
                 metalness={0.05}
               />
+            </mesh>
+            {/* Atmospheric Fresnel Rim Glow */}
+            <mesh material={earthAtmosphereMaterial}>
+              <sphereGeometry args={[0.92, 40, 40]} />
             </mesh>
             {/* 0 deg GMT Prime Meridian */}
             <Line points={primeMeridianPoints} color="#f472b6" lineWidth={2} />

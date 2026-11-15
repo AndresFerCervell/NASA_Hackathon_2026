@@ -23,7 +23,7 @@ export function useData() {
         if (requestSeqRef.current === seq) {
           setIsWakingUp(true);
         }
-      }, 3500);
+      }, 15000);
 
       try {
         const response = await getDatos(siteId, {

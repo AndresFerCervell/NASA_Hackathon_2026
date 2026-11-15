@@ -560,6 +560,7 @@ export function RocketLandingView({
         <div className="landing-canvas-wrap">
           <CanvasErrorBoundary>
             <Canvas camera={{ position: [0, 1.55, 3.8], fov: 42, near: 0.1, far: 100 }} dpr={[1, 2]}>
+              <color attach="background" args={['#060d1e']} />
               <Suspense fallback={null}>
                 <LandingStage
                   failureMode={failureMode}

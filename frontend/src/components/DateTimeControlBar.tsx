@@ -594,7 +594,7 @@ export function DateTimeControlBar({
           ))}
         </select>
 
-        <span className="control-hint">Active: {activeTz.shortLabel}</span>
+        <span className="control-hint">Select display offset</span>
       </div>
     </div>
   );

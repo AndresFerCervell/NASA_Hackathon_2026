@@ -1,6 +1,6 @@
 import { useMemo, useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Line } from '@react-three/drei';
+import { Line, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   computeOrbitalMechanicsFromJD,
@@ -120,6 +120,7 @@ export function ZenithalPreviewCard({
           gl={{ antialias: true, powerPreference: 'low-power' }}
         >
           <color attach="background" args={['#020617']} />
+          <Stars radius={60} depth={25} count={700} factor={2.4} saturation={0.15} fade speed={0.2} />
           <ZenithalMiniScene jdRef={jdRef} />
         </Canvas>
       </div>

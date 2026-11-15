@@ -4,7 +4,7 @@
   --panel-bg: rgba(11, 17, 34, 0.78);
   --panel-border: rgba(148, 163, 184, 0.2);
   --text-primary: #f1f5f9;
-  --text-muted: #94a3b8;
+  --text-muted: #b0bfd4;
   --accent: #38bdf8;
   --accent-strong: #0284c7;
   --sun-color: #ffd166;
@@ -33,6 +33,16 @@ body,
   position: relative;
   width: 100%;
   height: 100%;
+  background:
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.5px 1.5px at 28% 72%, rgba(186, 230, 253, 0.8), transparent),
+    radial-gradient(1px 1px at 44% 34%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 67% 22%, rgba(224, 242, 254, 0.85), transparent),
+    radial-gradient(1px 1px at 81% 64%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1.2px 1.2px at 91% 14%, rgba(186, 230, 253, 0.8), transparent),
+    radial-gradient(1px 1px at 22% 88%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.5px 1.5px at 58% 82%, rgba(224, 242, 254, 0.75), transparent),
+    radial-gradient(circle at 50% 45%, #0b132b 0%, #050814 70%);
 }
 
 .canvas-layer {
@@ -290,6 +300,7 @@ body,
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -352,29 +363,30 @@ body,
   gap: 12px;
 }
 
-.moon-bottom-row > .moon-coords-card {
+.moon-bottom-row>.moon-coords-card {
   opacity: 0;
   animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.32s forwards;
 }
 
-.moon-bottom-row > .sites-bar-wrap {
+.moon-bottom-row>.sites-bar-wrap {
   opacity: 0;
   animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.44s forwards;
 }
 
-.moon-bottom-row > .btn-group {
+.moon-bottom-row>.btn-group {
   opacity: 0;
   animation: moonFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.56s forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .moon-hero-team,
   .moon-hero .moon-hero-eyebrow,
   .moon-hero h2,
   .moon-hero p,
-  .moon-bottom-row > .moon-coords-card,
-  .moon-bottom-row > .sites-bar-wrap,
-  .moon-bottom-row > .btn-group {
+  .moon-bottom-row>.moon-coords-card,
+  .moon-bottom-row>.sites-bar-wrap,
+  .moon-bottom-row>.btn-group {
     opacity: 1;
     animation: none;
   }
@@ -600,9 +612,7 @@ body,
 .date-controls-row {
   display: grid;
   grid-template-columns:
-    minmax(160px, 1.25fr)
-    minmax(105px, 0.8fr)
-    minmax(115px, 0.85fr);
+    minmax(160px, 1.25fr) minmax(105px, 0.8fr) minmax(115px, 0.85fr);
   gap: 10px;
   align-items: start;
 }
@@ -616,8 +626,14 @@ body,
 }
 
 .orbital-mission-card {
-  flex: 1 1 520px;
-  max-width: 720px;
+  position: fixed;
+  top: 102px;
+  left: 16px;
+  width: min(360px, calc(100vw - 32px));
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 18;
 }
 
 .orbital-date-sim-card {
@@ -901,13 +917,32 @@ body,
   position: fixed;
   top: 16px;
   left: 16px;
-  width: min(340px, calc(100vw - 32px));
+  width: min(350px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
   display: flex;
   flex-direction: column;
   gap: 10px;
   z-index: 10;
+}
+
+.sim-running-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sim-running-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sim-running-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+}
+
+.sim-running-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }
 
 .sim-running-header {
@@ -1035,13 +1070,13 @@ body,
   gap: 3px;
 }
 
-.sim-advanced-section + .sim-advanced-section {
+.sim-advanced-section+.sim-advanced-section {
   padding-top: 6px;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .sim-advanced-heading {
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1054,7 +1089,7 @@ body,
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .sim-advanced-kv span {
@@ -1291,7 +1326,16 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(2, 6, 23, 0.72);
+  background:
+    radial-gradient(1.5px 1.5px at 14% 22%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 26% 68%, rgba(186, 230, 253, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 38% 16%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 62% 28%, rgba(224, 242, 254, 0.85), transparent),
+    radial-gradient(1.5px 1.5px at 78% 74%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 88% 19%, rgba(186, 230, 253, 0.75), transparent),
+    radial-gradient(1.2px 1.2px at 19% 84%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 72% 12%, rgba(253, 224, 71, 0.65), transparent),
+    rgba(2, 6, 23, 0.8);
   backdrop-filter: blur(8px);
   animation: simOverlayFadeIn 0.2s ease-out;
 }
@@ -1427,6 +1471,7 @@ body,
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1436,16 +1481,19 @@ body,
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
 @keyframes simRocketFloat {
+
   0%,
   100% {
     transform: translateY(3px) rotate(-1.5deg);
   }
+
   50% {
     transform: translateY(-6px) rotate(1.5deg);
   }
@@ -1456,6 +1504,7 @@ body,
     transform: scaleY(0.86) scaleX(0.95);
     opacity: 0.9;
   }
+
   to {
     transform: scaleY(1.14) scaleX(1.05);
     opacity: 1;
@@ -1467,6 +1516,7 @@ body,
     transform: translateY(0) scale(1);
     opacity: 0.85;
   }
+
   100% {
     transform: translateY(22px) scale(0.2);
     opacity: 0;
@@ -1477,12 +1527,14 @@ body,
   0% {
     transform: translateX(-110%);
   }
+
   100% {
     transform: translateX(250%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .sim-orbit-ring,
   .sim-rocket-wrap,
   .sim-rocket-flame-outer,
@@ -1496,7 +1548,7 @@ body,
 /* Zenithal Orbit Preview (top-right in Orbital Simulator) */
 .zenithal-preview-card {
   position: fixed;
-  top: 68px;
+  top: 102px;
   right: 16px;
   width: 224px;
   padding: 10px;
@@ -1536,4 +1588,125 @@ body,
   .zenithal-preview-card {
     display: none;
   }
+}
+
+/* About OSSM Modal */
+.about-btn {
+  flex-shrink: 0;
+}
+
+.about-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.about-modal-card {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(11, 17, 34, 0.96);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+
+.about-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.about-modal-head h2 {
+  margin: 8px 0 0;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.about-modal-copy {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.about-modal-copy strong {
+  color: var(--text-primary);
+}
+
+.about-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Header View Options Dropdown & Mission Picker Popover */
+.toolbar-dropdown-wrap,
+.mission-picker-wrap {
+  position: relative;
+}
+
+.toolbar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 280px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(11, 17, 34, 0.96);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  z-index: 40;
+}
+
+.toolbar-popover-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orbital-mission-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orbital-mission-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 320px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(11, 17, 34, 0.96);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  z-index: 40;
+}
+
+.orbital-mission-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  white-space: nowrap;
+  text-align: left;
+  padding: 6px 10px;
+}
+
+.orbital-mission-option small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
