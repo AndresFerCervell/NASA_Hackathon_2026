@@ -40,3 +40,19 @@ Codex compared project files using SHA-256 and removed the redundant root-level
 `LOLA_Terreno/datos/ldem_16.img`, preserving the identical copy under `backend`.
 Dependencies, caches and Git metadata were excluded; one inaccessible request
 directory could not be inspected. Duplicate files within backend were retained.
+
+### 2026-11-15 - Repository cleanup and evaluation entry point
+
+Codex traced evaluation and API dependencies, consolidated the ephemeris adapter
+into lunar geometry, and organized terrain and decision rules under app with a
+single evaluar.py CLI. Legacy scripts, notebooks and samples were preserved
+locally and removed from the active repository. Backend Markdown documentation,
+downloads and generated results are ignored by Git. AI was used to update imports,
+dependency specifications, commands and the root code-review guide, and to verify
+deterministic regressions. Scientific criteria and existing HTTP contracts were
+preserved.
+
+Validation: 67 deterministic tests passed, including the unified CLI launched
+from another working directory. The existing LOLA cache and FastAPI health route
+were checked without network calls; evaluator function/class ASTs match the
+original implementation. Frontend source files were unchanged.

@@ -59,3 +59,14 @@ __pycache__
 
 # Local backend review and agent instructions
 /backend/INSTRUCCIONES_AGENTES_BACKEND_LOCAL.md
+
+# Backend documentation is local only
+/backend/*.md
+/backend/**/*.md
+
+# Local experiments, downloads and calculation output
+/backend/local/
+/backend/results/
+/backend/datos_lunares/
+/backend/data/
+/LOLA_Terreno/

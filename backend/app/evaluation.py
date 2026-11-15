@@ -1,4 +1,4 @@
-﻿"""Estimación de viabilidad por criterios geométricos, sin modelo de vehículo.
+"""Estimación de viabilidad por criterios geométricos, sin modelo de vehículo.
 
 El informe v2 acumula todos los fallos evaluables. Un dato ausente no equivale
 a un criterio superado: se registra y se devuelve la evaluación incompleta.
@@ -7,11 +7,8 @@ máximo anterior y se declara la métrica utilizada en datos_tecnicos.
 """
 from __future__ import annotations
 
-import argparse
 from datetime import datetime, timezone
-import json
 import math
-from pathlib import Path
 
 
 # 2 y 7 describen datos, no un rechazo físico. Se conservan los códigos previos.
@@ -340,14 +337,3 @@ class LandingSiteEvaluator:
             clave, sitio, por_sitio.get(clave) if por_sitio is not None else
             payload.get("ephemeris") if len(sitios) == 1 else None,
         ) for clave, sitio in sitios.items()}
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("entrada", type=Path, help="JSON combinado con sitios y efemérides propias de cada sitio")
-    parser.add_argument("--min-porcentaje-luz", type=float, default=50.0,
-                        help="Porcentaje de las horas solicitadas que debe superarse con luz (0 a 100)")
-    args = parser.parse_args()
-    resultado = LandingSiteEvaluator(min_porcentaje_luz=args.min_porcentaje_luz).evaluar_dataset_completo(
-        json.loads(args.entrada.read_text(encoding="utf-8")))
-    print(json.dumps(resultado, indent=2, ensure_ascii=False, allow_nan=False))

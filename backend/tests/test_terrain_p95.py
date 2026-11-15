@@ -6,7 +6,7 @@ import numpy as np
 from rasterio.io import MemoryFile
 from rasterio.transform import from_origin
 
-from LOLA_Terreno.terreno_lola import _pendiente_30m, calcular_terreno, pendiente_maxima_local
+from app.terrain import _pendiente_30m, calcular_terreno, pendiente_maxima_local
 
 
 class TerrenoP95Tests(unittest.TestCase):
@@ -32,9 +32,9 @@ class TerrenoP95Tests(unittest.TestCase):
                               dtype="float64", crs=crs,
                               transform=from_origin(-505, 505, 10, 10)) as ds:
                 ds.write(z, 1)
-            with patch("LOLA_Terreno.terreno_lola.cargar_lola", return_value=(None, 1)), \
-                 patch("LOLA_Terreno.terreno_lola.elevacion", return_value=0), \
-                 patch("LOLA_Terreno.terreno_lola.horizonte", return_value=np.zeros(360)):
+            with patch("app.terrain.cargar_lola", return_value=(None, 1)), \
+                 patch("app.terrain.elevacion", return_value=0), \
+                 patch("app.terrain.horizonte", return_value=np.zeros(360)):
                 resultado = calcular_terreno(-89.999, 0, dem_local=archivo.name, salida=None)
             self.assertGreater(resultado["pendiente_deg"], 15)
             self.assertEqual(resultado["pendiente_p95_deg"], 0)
@@ -68,7 +68,7 @@ class TerrenoP95Tests(unittest.TestCase):
             r.__exit__ = Mock(return_value=False)
             return r
 
-        with patch("LOLA_Terreno.terreno_lola.requests.get", side_effect=respuesta):
+        with patch("app.terrain.requests.get", side_effect=respuesta):
             maxima, detalle = _pendiente_30m(15 - 30.5 / 1024, 30.5 / 1024, 300)
         self.assertGreater(maxima, 15)
         self.assertEqual(detalle["pendiente_p95_deg"], 0)
