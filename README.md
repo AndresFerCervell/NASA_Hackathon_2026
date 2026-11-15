@@ -12,17 +12,17 @@ The project combines real lunar topography (LOLA), high-resolution elevation mod
 
 ## Contents
 
-* [Overview & What Does It Do?](https://www.google.com/search?q=%23overview--what-does-it-do)
-* [1. Main Features](https://www.google.com/search?q=%231-main-features)
-* [2. System Architecture & Code Layout](https://www.google.com/search?q=%232-system-architecture--code-layout)
-* [3. Repository Structure](https://www.google.com/search?q=%233-repository-structure)
-* [4. REST API — Backend Endpoints](https://www.google.com/search?q=%234-rest-api--backend-endpoints)
-* [5. Landing Site Evaluation Criteria & Logic](https://www.google.com/search?q=%235-landing-site-evaluation-criteria--logic)
-* [6. Running the Project & Getting Started](https://www.google.com/search?q=%236-running-the-project--getting-started)
-* [7. Configuration and Deployment](https://www.google.com/search?q=%237-configuration-and-deployment)
-* [8. Scientific Considerations & Limitations](https://www.google.com/search?q=%238-scientific-considerations--limitations)
-* [9. External Data, Resources, Credits, and License](https://www.google.com/search?q=%239-external-data-resources-credits-and-license)
-* [10. Glossary & AI Usage](https://www.google.com/search?q=%2310-glossary--ai-usage)
+- [Overview & What Does It Do?](#overview--what-does-it-do)
+- [1. Main Features](#1-main-features)
+- [2. System Architecture & Code Layout](#2-system-architecture--code-layout)
+- [3. Repository Structure](#3-repository-structure)
+- [4. REST API — Backend Endpoints](#4-rest-api--backend-endpoints)
+- [5. Landing Site Evaluation Criteria & Logic](#5-landing-site-evaluation-criteria--logic)
+- [6. Running the Project & Getting Started](#6-running-the-project--getting-started)
+- [7. Configuration and Deployment](#7-configuration-and-deployment)
+- [8. Scientific Considerations & Limitations](#8-scientific-considerations--limitations)
+- [9. External Data, Resources, Credits, and License](#9-external-data-resources-credits-and-license)
+- [10. Glossary & AI Usage](#10-glossary--ai-usage)
 
 ---
 
