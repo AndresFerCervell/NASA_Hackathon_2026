@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#070b14"/>
+  <!-- Orbital ring -->
+  <ellipse cx="32" cy="32" rx="26" ry="11" transform="rotate(-24 32 32)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.75" stroke-dasharray="4 3"/>
+  <!-- Moon body -->
+  <circle cx="32" cy="32" r="18" fill="url(#moonGrad)"/>
+  <!-- Lunar craters -->
+  <circle cx="25" cy="26" r="3.5" fill="#94a3b8" fill-opacity="0.45"/>
+  <circle cx="38" cy="37" r="4.5" fill="#94a3b8" fill-opacity="0.4"/>
+  <circle cx="36" cy="24" r="2.2" fill="#94a3b8" fill-opacity="0.35"/>
+  <circle cx="24" cy="38" r="2" fill="#94a3b8" fill-opacity="0.35"/>
+  <!-- Landing site target reticle -->
+  <circle cx="33" cy="31" r="4.5" stroke="#f59e0b" stroke-width="1.8"/>
+  <circle cx="33" cy="31" r="1.4" fill="#f59e0b"/>
+  <defs>
+    <radialGradient id="moonGrad" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 24) rotate(50) scale(28)">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="0.65" stop-color="#cbd5e1"/>
+      <stop offset="1" stop-color="#64748b"/>
+    </radialGradient>
+  </defs>
+</svg>
