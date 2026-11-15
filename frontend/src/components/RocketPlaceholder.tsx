@@ -150,16 +150,9 @@ export function RocketPlaceholder({
         beaconRef.current.visible = p >= 0.96;
         beaconRef.current.position.copy(touchdownPos);
       }
-    } else {
-      // Failure trajectories based on tipo_fallo
-      const abortPoint =
-        failureMode === 'critical'
-          ? 0.45
-          : failureMode === 'comms'
-            ? 0.65
-            : failureMode === 'slope'
-              ? 0.85
-              : 0.78;
+    } else if (failureMode === 'comms') {
+      // Loss of comms: aborts mid-flight and drifts off into space
+      const abortPoint = 0.65;
 
       if (p < abortPoint) {
         const u = p / abortPoint;
@@ -171,15 +164,10 @@ export function RocketPlaceholder({
       } else {
         const u = (p - abortPoint) / (1 - abortPoint);
         const baseAbortPos = new THREE.Vector3().lerpVectors(startPos, approachPos, abortPoint);
-        const driftDir =
-          failureMode === 'comms'
-            ? xAxis.clone().multiplyScalar(1.8)
-            : failureMode === 'solar'
-              ? yAxis.clone().multiplyScalar(-1.5)
-              : xAxis.clone().add(yAxis).normalize().multiplyScalar(2.0);
+        const driftDir = xAxis.clone().multiplyScalar(1.8);
         currentPos.copy(baseAbortPos).addScaledVector(driftDir, u);
         rocketRef.current.position.copy(currentPos);
-        // Tumble on failure
+        // Tumble on comms loss
         rocketRef.current.rotation.x += dt * 4.5;
         rocketRef.current.rotation.z += dt * 3.2;
       }
@@ -190,6 +178,61 @@ export function RocketPlaceholder({
       if (beaconRef.current) {
         beaconRef.current.visible = p >= abortPoint;
         beaconRef.current.position.copy(currentPos);
+      }
+    } else {
+      // Solar / Slope / Critical failures: reaches the Moon, falls/crashes on the surface, and stays there
+      if (p < 0.72) {
+        const u = p / 0.72;
+        const arcHeight = Math.sin(u * Math.PI) * 0.8;
+        currentPos.lerpVectors(startPos, approachPos, u);
+        currentPos.y += arcHeight;
+
+        const nextU = Math.min(1, u + 0.02);
+        const nextPos = new THREE.Vector3().lerpVectors(startPos, approachPos, nextU);
+        nextPos.y += Math.sin(nextU * Math.PI) * 0.8;
+        rocketRef.current.position.copy(currentPos);
+        rocketRef.current.lookAt(nextPos);
+        rocketRef.current.rotateX(Math.PI / 2);
+      } else if (p < 0.9) {
+        const u = (p - 0.72) / 0.18;
+        const eased = u * u;
+        currentPos.lerpVectors(approachPos, touchdownPos, eased);
+        rocketRef.current.position.copy(currentPos);
+
+        const upQuat = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          siteWorldNormal
+        );
+        if (failureMode === 'slope' || failureMode === 'critical') {
+          const tipQuat = new THREE.Quaternion().setFromAxisAngle(xAxis, eased * 1.35);
+          rocketRef.current.quaternion.copy(tipQuat).multiply(upQuat);
+        } else {
+          rocketRef.current.quaternion.copy(upQuat);
+        }
+      } else {
+        // Remains on the lunar surface at the landing site
+        currentPos.copy(touchdownPos);
+        rocketRef.current.position.copy(currentPos);
+        const upQuat = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          siteWorldNormal
+        );
+        if (failureMode === 'slope' || failureMode === 'critical') {
+          const tipQuat = new THREE.Quaternion().setFromAxisAngle(xAxis, 1.35);
+          rocketRef.current.quaternion.copy(tipQuat).multiply(upQuat);
+        } else {
+          rocketRef.current.quaternion.copy(upQuat);
+        }
+      }
+
+      if (flameRef.current) {
+        flameRef.current.visible = isPlaying && p < 0.88;
+        const flicker = 0.85 + Math.sin(p * 80) * 0.15;
+        flameRef.current.scale.set(1, flicker, 1);
+      }
+      if (beaconRef.current) {
+        beaconRef.current.visible = p >= 0.88;
+        beaconRef.current.position.copy(touchdownPos);
       }
     }
   });

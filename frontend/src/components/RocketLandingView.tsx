@@ -213,9 +213,10 @@ function LandingStage({
         rocket.position.set(jitter, TOUCHDOWN_Y, 0);
         rocket.rotation.set(0, 0, jitter * 1.5);
       } else {
-        // Exploded!
-        rocket.visible = p < 0.73;
+        // Powered off on the lunar surface
+        rocket.visible = true;
         rocket.position.set(0, TOUCHDOWN_Y, 0);
+        rocket.rotation.set(0, 0, 0);
       }
 
       if (flameRef.current) {
@@ -271,7 +272,7 @@ function LandingStage({
         rocket.position.set(tipEase * 0.48, THREE.MathUtils.lerp(TOUCHDOWN_Y, 0.14, tipEase), 0);
         rocket.rotation.set(0, 0, -tipEase * 1.48);
       } else {
-        rocket.visible = p < 0.77;
+        rocket.visible = true;
         rocket.position.set(0.48, 0.14, 0);
         rocket.rotation.set(0, 0, -1.48);
       }
@@ -312,7 +313,9 @@ function LandingStage({
         );
         rocket.rotation.set(u * 3.8, u * 1.4, -u * 2.9);
       } else {
-        rocket.visible = p < 0.63;
+        rocket.visible = true;
+        rocket.position.set(Math.sin(6) * 0.25, 0.22, Math.cos(5) * 0.15);
+        rocket.rotation.set(3.8, 1.4, -2.9);
       }
 
       if (flameRef.current) {
