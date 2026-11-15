@@ -14,7 +14,7 @@ import {
   PERIHELION_LON_DEG,
 } from '../astronomy/ephemeris';
 import { createSunGlowTexture } from '../astronomy/textures';
-import type { LandingSite } from '../astronomy/landingSites';
+import { geoPoint, type LandingSite } from '../astronomy/landingSites';
 import type { StellarData } from '../model/datosEstelares';
 import { RocketPlaceholder } from './RocketPlaceholder';
 
@@ -476,6 +476,41 @@ export function SolarSystemScene({
         <mesh ref={moonRef}>
           <sphereGeometry args={[0.28, 32, 32]} />
           <meshStandardMaterial map={moonMap} roughness={0.9} metalness={0.02} />
+          {selectedSite && (() => {
+            const sitePos = geoPoint(selectedSite.latDeg, selectedSite.lonDeg, 0.286);
+            const labelPos = geoPoint(selectedSite.latDeg, selectedSite.lonDeg, 0.42);
+            return (
+              <group>
+                <mesh position={sitePos}>
+                  <sphereGeometry args={[0.028, 16, 16]} />
+                  <meshBasicMaterial color="#ef4444" />
+                </mesh>
+                <Billboard position={sitePos}>
+                  <mesh>
+                    <ringGeometry args={[0.04, 0.056, 24]} />
+                    <meshBasicMaterial
+                      color="#f87171"
+                      transparent
+                      opacity={0.9}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                </Billboard>
+                {showLabels && (
+                  <Billboard position={labelPos}>
+                    <Text
+                      fontSize={0.14}
+                      color="#fecaca"
+                      outlineWidth={0.015}
+                      outlineColor="#050814"
+                    >
+                      {selectedSite.name}
+                    </Text>
+                  </Billboard>
+                )}
+              </group>
+            );
+          })()}
         </mesh>
       </group>
 
