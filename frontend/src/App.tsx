@@ -17,6 +17,7 @@ import {
   type LandingSite,
 } from './astronomy/landingSites';
 import { CanvasErrorBoundary } from './components/CanvasErrorBoundary';
+import { DateTimeControlBar } from './components/DateTimeControlBar';
 import { MoonExplorerScene } from './components/MoonExplorerScene';
 import { getFailureMode } from './components/RocketPlaceholder';
 import { RocketLandingView } from './components/RocketLandingView';
@@ -89,7 +90,6 @@ export function App() {
 
   const cal = useMemo(() => jdToCalendarUTC(displayJD), [displayJD]);
   const telemetry = useMemo(() => computeOrbitalMechanicsFromJD(displayJD), [displayJD]);
-  const maxDays = useMemo(() => daysInMonth(cal.year, cal.month), [cal.year, cal.month]);
 
   const solarImpact = useMemo(
     () => (selectedSite ? computeSiteSolarImpact(selectedSite, displayJD) : null),
@@ -667,99 +667,20 @@ export function App() {
                 )}
 
                 <div className="hud-card">
-                  <div className="controls-grid">
-                    <div className="control-cell">
-                      <div className="control-top">
-                        <label htmlFor="ctrl-year">Year (1900–2100)</label>
-                        <span className="control-val">{cal.year}</span>
-                      </div>
-                      <input
-                        id="ctrl-year"
-                        type="range"
-                        min={1900}
-                        max={2100}
-                        step={1}
-                        value={cal.year}
-                        onChange={(e) =>
-                          setCalendarUTC(parseInt(e.target.value, 10), cal.month, cal.day, cal.hour)
-                        }
+                  <div className="controls-bar-layout">
+                    <div className="controls-left-col">
+                      <DateTimeControlBar
+                        year={cal.year}
+                        month={cal.month}
+                        day={cal.day}
+                        hour={cal.hour}
+                        onChangeUTC={setCalendarUTC}
                       />
-                    </div>
-
-                    <div className="control-cell">
-                      <div className="control-top">
-                        <label htmlFor="ctrl-month">Month (UTC)</label>
-                        <span className="control-val">M = {cal.month}</span>
+                      <div className="hint-strip">
+                        <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
                       </div>
-                      <select
-                        id="ctrl-month"
-                        value={cal.month}
-                        onChange={(e) =>
-                          setCalendarUTC(cal.year, parseInt(e.target.value, 10), cal.day, cal.hour)
-                        }
-                      >
-                        {[
-                          '01 — January',
-                          '02 — February',
-                          '03 — March',
-                          '04 — April',
-                          '05 — May',
-                          '06 — June',
-                          '07 — July',
-                          '08 — August',
-                          '09 — September',
-                          '10 — October',
-                          '11 — November',
-                          '12 — December',
-                        ].map((label, idx) => (
-                          <option key={label} value={idx + 1}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
                     </div>
 
-                    <div className="control-cell">
-                      <div className="control-top">
-                        <label htmlFor="ctrl-day">Day of Month</label>
-                        <span className="control-val">{cal.day}</span>
-                      </div>
-                      <input
-                        id="ctrl-day"
-                        type="range"
-                        min={1}
-                        max={maxDays}
-                        step={1}
-                        value={Math.min(cal.day, maxDays)}
-                        onChange={(e) =>
-                          setCalendarUTC(cal.year, cal.month, parseInt(e.target.value, 10), cal.hour)
-                        }
-                      />
-                    </div>
-
-                    <div className="control-cell">
-                      <div className="control-top">
-                        <label htmlFor="ctrl-hour">Hour (UTC)</label>
-                        <span className="control-val">{cal.hour.toFixed(1)}h</span>
-                      </div>
-                      <input
-                        id="ctrl-hour"
-                        type="range"
-                        min={0}
-                        max={23.9}
-                        step={0.1}
-                        value={Number(cal.hour.toFixed(1))}
-                        onChange={(e) =>
-                          setCalendarUTC(cal.year, cal.month, cal.day, parseFloat(e.target.value))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="controls-footer">
-                    <div className="hint-strip" style={{ marginTop: 0 }}>
-                      <span>Drag to orbit &bull; Scroll to zoom &bull; &larr;/&rarr; &plusmn;1 day &bull; Space Simulate</span>
-                    </div>
                     <button
                       type="button"
                       className="simulate-cta"
