@@ -1,11 +1,72 @@
-node_modules
+# Dependencies
+node_modules/
+bower_components/
+
+# Build output
+dist/
+build/
+out/
+coverage/
+.next/
+.vite/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.template
+.venv
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific files
 package-lock.json
 skills-lock.json
 tsconfig.tsbuildinfo
 .agents
 .claude
-dist
 backend/.venv
 backend/data/*.bsp
 __pycache__
 *.pyc
+
+*.tiff
+*.TIF
+*.tif
+*.img
+*.IMG
+
+# Archivos basura generados por Windows en WSL
+*:Zone.Identifier
+
+# scripts
+.build_lola_notebook.py
+
+# Local backend review and agent instructions
+/backend/INSTRUCCIONES_AGENTES_BACKEND_LOCAL.md
+
+# Backend documentation is local only
+/backend/*.md
+/backend/**/*.md
+
+# Local experiments, downloads and calculation output
+/backend/local/
+/backend/results/
+/backend/datos_lunares/
+/backend/data/
+/LOLA_Terreno/

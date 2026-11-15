@@ -9,10 +9,12 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 3001 --reload",
+    "dev:backend": "python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 3001 --reload",
     "build": "npm run build:backend && npm run build:frontend",
     "build:frontend": "npm run build --workspace=frontend",
-    "build:backend": "backend\\.venv\\Scripts\\python.exe -m py_compile backend/app/main.py backend/app/astronomy/ephemeris.py"
+    "build:backend": "python -m compileall -q backend/app backend/evaluar.py",
+    "evaluate": "python backend/evaluar.py",
+    "test:backend": "cd backend && python -B -m unittest discover -s tests"
   },
   "repository": {
     "type": "git",

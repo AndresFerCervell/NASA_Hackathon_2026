@@ -5,9 +5,11 @@ from __future__ import annotations
 import os
 from dataclasses import asdict
 from datetime import datetime, timezone
+import os
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from app.lunar_api import router as lunar_router
 
 from app.astronomy.ephemeris import (
     clamp_or_wrap_jd,
@@ -19,6 +21,7 @@ from app.astronomy.ephemeris import (
 )
 
 app = FastAPI(title="J2000.0 Ephemeris API", version="1.0.0")
+app.include_router(lunar_router)
 
 _raw_cors_origins = os.getenv("CORS_ORIGINS", "*").strip()
 _cors_origins = (
