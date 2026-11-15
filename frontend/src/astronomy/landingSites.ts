@@ -40,17 +40,6 @@ export interface SolarImpactStatus {
  */
 export const CURATED_LANDING_SITES: LandingSite[] = [
   {
-    id: 'im1-odysseus',
-    name: 'IM-1 Odysseus (Malapert A)',
-    program: 'CLPS',
-    region: 'South Pole · Malapert A',
-    pole: 'south',
-    latDeg: -80.13,
-    lonDeg: 1.44,
-    missionDate: { year: 2024, month: 2, day: 22, hour: 23.38 },
-    dateLabel: '2024-02-22 23:23 UTC',
-  },
-  {
     id: 'artemis3-shackleton',
     name: 'Artemis III (Shackleton Rim)',
     program: 'Artemis III',
@@ -71,6 +60,28 @@ export const CURATED_LANDING_SITES: LandingSite[] = [
     lonDeg: 23.47,
     missionDate: { year: 1969, month: 7, day: 20, hour: 20.29 },
     dateLabel: '1969-07-20 20:17 UTC',
+  },
+  {
+    id: 'south-pole-slope-test',
+    name: 'South Pole Ridge (Slope Test)',
+    program: 'Artemis · Test',
+    region: 'South Pole · 89.7° S, 0° E',
+    pole: 'south',
+    latDeg: -89.7,
+    lonDeg: 0.0,
+    missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
+    dateLabel: '2026-11-14 10:40 UTC',
+  },
+  {
+    id: 'shackleton-steep-slope',
+    name: 'Shackleton Wall (Steep Slope)',
+    program: 'Artemis · Test',
+    region: 'South Pole · Shackleton Crater',
+    pole: 'south',
+    latDeg: -89.8,
+    lonDeg: 90.0,
+    missionDate: { year: 2026, month: 11, day: 14, hour: 10.67 },
+    dateLabel: '2026-11-14 10:40 UTC',
   },
 ];
 
