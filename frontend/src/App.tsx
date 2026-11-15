@@ -62,7 +62,6 @@ export function App() {
   const [cameraMode, setCameraMode] = useState<CameraMode>('zenithal');
   const [showLabels, setShowLabels] = useState(true);
   const [showAdvancedTelemetry, setShowAdvancedTelemetry] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const missionBarRef = useRef<HTMLDivElement | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -113,15 +112,6 @@ export function App() {
   const solarImpact = useMemo(
     () => (selectedSite ? computeSiteSolarImpact(selectedSite, displayJD) : null),
     [selectedSite, displayJD]
-  );
-
-  const comparisonRows = useMemo(
-    () =>
-      sites.map((site) => ({
-        site,
-        impact: computeSiteSolarImpact(site, displayJD),
-      })),
-    [sites, displayJD]
   );
 
   const setCalendarUTC = useCallback(
@@ -337,11 +327,14 @@ export function App() {
             {/* Top Header */}
             <header className="hud-card hud-header">
               <div className="title-block">
-                <h1>
-                  {activeTab === 'moon'
-                    ? 'Lunar Landing Site Navigator — Moon Explorer'
-                    : 'Lunar Landing Site Navigator — Orbit Simulator'}
-                </h1>
+                <div className="title-top-row">
+                  <h1>
+                    {activeTab === 'moon'
+                      ? 'Lunar Landing Site Navigator — Moon Explorer'
+                      : 'Lunar Landing Site Navigator — Orbit Simulator'}
+                  </h1>
+                  <span className="team-brand-pill">OSSM · One Safe Step For Mankind</span>
+                </div>
                 <p>
                   {formatUTCString(cal.year, cal.month, cal.day, cal.hour)} &bull; Sun-Earth-Moon
                   {apiOnline !== null && ` • ${apiOnline ? 'API Connected' : 'Local Ephemeris'}`}
@@ -351,15 +344,6 @@ export function App() {
               <div className="toolbar">
                 {activeTab === 'orbital' && (
                   <>
-                    <button
-                      type="button"
-                      className={`hud-btn ${showComparison ? 'is-active' : ''}`}
-                      aria-pressed={showComparison}
-                      onClick={() => setShowComparison((v) => !v)}
-                    >
-                      Compare Sites
-                    </button>
-
                     <div className="btn-group" role="group" aria-label="Camera mode">
                       <button
                         type="button"
@@ -413,10 +397,7 @@ export function App() {
                     role="tab"
                     aria-selected={activeTab === 'moon'}
                     className={`hud-btn ${activeTab === 'moon' ? 'is-active' : ''}`}
-                    onClick={() => {
-                      setShowComparison(false);
-                      setActiveTab('moon');
-                    }}
+                    onClick={() => setActiveTab('moon')}
                   >
                     Lunar Globe
                   </button>
@@ -436,68 +417,12 @@ export function App() {
               </div>
             </header>
 
-            {/* Side-by-Side Comparison Drawer (Orbital view only) */}
-            {activeTab === 'orbital' && showComparison && (
-              <section className="hud-card comparison-panel" aria-label="Lunar landing site comparison">
-                <div className="comparison-grid">
-                  {comparisonRows.map(({ site, impact }) => (
-                    <div
-                      key={site.id}
-                      className={`compare-card ${selectedSite?.id === site.id ? 'is-selected' : ''}`}
-                    >
-                      <div className="compare-card-head">
-                        <div>
-                          <span className="compare-program">{site.program}</span>
-                          <div>
-                            <strong>{site.name}</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="compare-metrics">
-                        <span>
-                          {formatDms(site.latDeg, true)}, {formatDms(site.lonDeg, false)}
-                        </span>
-                        {site.dateLabel && <span>Date: {site.dateLabel}</span>}
-                      </div>
-                      <div className="compare-metrics">
-                        <span>
-                          Sun: {impact.elevationDeg >= 0 ? '+' : ''}
-                          {impact.elevationDeg.toFixed(1)}&deg;
-                        </span>
-                        <span>
-                          {impact.earthVisible ? '📡 Earth visible' : 'No Earth view'} (
-                          {impact.earthElevationDeg >= 0 ? '+' : ''}
-                          {impact.earthElevationDeg.toFixed(1)}&deg;)
-                        </span>
-                      </div>
-                      <div className="compare-actions">
-                        <button
-                          type="button"
-                          className="hud-btn is-active"
-                          onClick={() => handleSelectSite(site)}
-                        >
-                          View in Orbit
-                        </button>
-                        <a
-                          className="quickmap-link"
-                          href={getQuickmapUrl(site.latDeg, site.lonDeg)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          LROC QuickMap ↗
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Initial Tab: 3D Moon Explorer Overlay */}
             {activeTab === 'moon' ? (
               <>
                 <div className="moon-hero">
-                  <div className="moon-hero-eyebrow">01 — One Safe Step For Mankind (OSSM)</div>
+                  <div className="moon-hero-team">One Safe Step For Mankind (OSSM)</div>
+                  <div className="moon-hero-eyebrow">01 — Lunar Landing Site Navigator</div>
                   <h2>Moon.</h2>
                   <p>
                     Rotate the lunar globe and click any of the preloaded missions to open the zenithal

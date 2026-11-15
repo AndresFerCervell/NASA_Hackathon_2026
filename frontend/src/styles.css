@@ -78,6 +78,27 @@ body,
   gap: 12px;
 }
 
+.title-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
 .title-block h1 {
   margin: 0;
   font-size: 1.05rem;
@@ -277,8 +298,19 @@ body,
 
 .moon-hero {
   pointer-events: none;
-  max-width: 300px;
+  max-width: 390px;
   margin-top: 8px;
+}
+
+.moon-hero-team {
+  font-size: clamp(1rem, 1.8vw, 1.28rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #7dd3fc;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 14px rgba(56, 189, 248, 0.35);
+  opacity: 0;
+  animation: moonFadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.06s forwards;
 }
 
 .moon-hero .moon-hero-eyebrow {
@@ -336,6 +368,7 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .moon-hero-team,
   .moon-hero .moon-hero-eyebrow,
   .moon-hero h2,
   .moon-hero p,
