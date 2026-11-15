@@ -70,3 +70,6 @@ __pycache__
 /backend/datos_lunares/
 /backend/data/
 /LOLA_Terreno/
+
+# Local UX analysis
+/AnalisisUX.md
